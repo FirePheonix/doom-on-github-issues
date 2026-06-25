@@ -162,8 +162,16 @@ export function createServer() {
         res.status(403).json({ ok: false, error: "unexpected_repository" });
         return;
       }
-
-      await ensureEngineAssets(projectRoot);
+      const schedule = (job) => {
+        setImmediate(async () => {
+          try {
+            await ensureEngineAssets(projectRoot);
+            await job();
+          } catch (error) {
+            console.error("Webhook job failed:", error);
+          }
+        });
+      };
 
       if (event === "issues" && payload?.action === "opened") {
         const issueNumber = getIssueNumber(payload);
@@ -172,14 +180,15 @@ export function createServer() {
           return;
         }
 
-        await lockStore.withIssueLock(issueNumber, async () => {
-          await ensureDataDir();
-          const state = createSession(issueNumber);
-          await persistSessionArtifacts(projectRoot, issueNumber, state);
-          await updateIssueView(github, owner, repo, issueNumber, payload.issue.body || "", req, state);
+        schedule(async () => {
+          await lockStore.withIssueLock(issueNumber, async () => {
+            await ensureDataDir();
+            const state = createSession(issueNumber);
+            await persistSessionArtifacts(projectRoot, issueNumber, state);
+            await updateIssueView(github, owner, repo, issueNumber, payload.issue.body || "", req, state);
+          });
         });
-
-        res.json({ ok: true, event: "issues.opened", issueNumber });
+        res.status(202).json({ ok: true, accepted: "issues.opened", issueNumber });
         return;
       }
 
@@ -205,22 +214,23 @@ export function createServer() {
           return;
         }
 
-        await lockStore.withIssueLock(issueNumber, async () => {
-          await ensureDataDir();
+        schedule(async () => {
+          await lockStore.withIssueLock(issueNumber, async () => {
+            await ensureDataDir();
 
-          let state;
-          if (await hasSession(issueNumber)) {
-            state = await loadSession(issueNumber);
-          } else {
-            state = createSession(issueNumber);
-          }
+            let state;
+            if (await hasSession(issueNumber)) {
+              state = await loadSession(issueNumber);
+            } else {
+              state = createSession(issueNumber);
+            }
 
-          stepSession(state, commentBody);
-          await persistSessionArtifacts(projectRoot, issueNumber, state);
-          await updateIssueView(github, owner, repo, issueNumber, payload.issue.body || "", req, state);
+            stepSession(state, commentBody);
+            await persistSessionArtifacts(projectRoot, issueNumber, state);
+            await updateIssueView(github, owner, repo, issueNumber, payload.issue.body || "", req, state);
+          });
         });
-
-        res.json({ ok: true, event: "issue_comment.created", issueNumber });
+        res.status(202).json({ ok: true, accepted: "issue_comment.created", issueNumber });
         return;
       }
 

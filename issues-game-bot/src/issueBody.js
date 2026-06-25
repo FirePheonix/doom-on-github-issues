@@ -2,13 +2,14 @@ const START = "<!-- ISSUE_GAME_STATE:START -->";
 const END = "<!-- ISSUE_GAME_STATE:END -->";
 
 export function formatIssueSection({ stateSummary, imageUrl, logs }) {
+  const imageLine = imageUrl ? `![doom-frame](${imageUrl})` : "_Loading first frame..._";
   return [
     START,
     "## Doom-Issues Session",
     "",
     "Each new comment advances one action tick.",
     "",
-    `![doom-frame](${imageUrl})`,
+    imageLine,
     "",
     `- tick: ${stateSummary.tick}`,
     `- hp: ${stateSummary.hp}`,

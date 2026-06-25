@@ -14,7 +14,7 @@ Turn-based Doom sessions driven by GitHub Issues/comments, rendered with a real 
 - `s`: move backward
 - `a`: turn left
 - `d`: turn right
-- `fire` (or `enter`): attack
+- `fire`: attack
 - `restart`
 - `help`
 

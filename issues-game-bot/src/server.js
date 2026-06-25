@@ -90,6 +90,30 @@ async function updateIssueView(octokit, owner, repo, issueNumber, body, req, sta
   });
 }
 
+async function updateIssueLoadingView(octokit, owner, repo, issueNumber, body) {
+  const section = formatIssueSection({
+    stateSummary: {
+      tick: 0,
+      hp: "loading",
+      kills: "loading",
+      targetKills: "loading",
+      status: "loading",
+      renderer: "vizdoom",
+      commands: "w=forward a=turn-left s=back d=turn-right fire=shoot"
+    },
+    imageUrl: "",
+    logs: ["Booting Doom engine and preparing first frame..."]
+  });
+  const merged = mergeIssueBody(body, section);
+
+  await octokit.rest.issues.update({
+    owner,
+    repo,
+    issue_number: issueNumber,
+    body: merged
+  });
+}
+
 async function persistSessionArtifacts(projectRoot, issueNumber, state) {
   await saveSession(issueNumber, state);
   await renderEngineFrame(projectRoot, getSessionPath(issueNumber), getFramePath(issueNumber));
@@ -209,6 +233,8 @@ export function createServer() {
           res.status(200).json({ ok: true, ignored: "missing_issue_number" });
           return;
         }
+
+        await updateIssueLoadingView(github, owner, repo, issueNumber, payload.issue.body || "");
 
         schedule(issueNumber, async () => {
           await lockStore.withIssueLock(issueNumber, async () => {

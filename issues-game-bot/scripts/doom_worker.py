@@ -44,19 +44,45 @@ def action_for(command: str) -> list[int]:
 
 
 def build_game(seed: int) -> DoomGame:
-    game = DoomGame()
-
     assets_root = Path(__file__).resolve().parent / "assets"
     iwad_path = assets_root / "doom1.wad"
+    basic_cfg = assets_root / "basic.cfg"
+    basic_wad = assets_root / "basic.wad"
 
-    if not iwad_path.exists():
+    if not iwad_path.exists() and not (basic_cfg.exists() and basic_wad.exists()):
         raise RuntimeError(
-            "Missing doom1.wad. Run scripts/fetch_doom_assets.py first."
+            "Missing assets. Run scripts/fetch_doom_assets.py first."
         )
 
-    game.add_game_args(f"-iwad {iwad_path}")
-    game.set_doom_map("E1M1")
-    game.add_game_args("+skill 2")
+    # Try classic shareware IWAD mode first.
+    if iwad_path.exists():
+        try:
+            game = DoomGame()
+            game.set_doom_game_path(str(iwad_path))
+            game.set_doom_map("E1M1")
+            game.add_game_args("+skill 2")
+            game.set_mode(Mode.PLAYER)
+            game.set_seed(seed)
+            game.set_window_visible(False)
+            game.set_screen_resolution(ScreenResolution.RES_320X240)
+            game.set_screen_format(ScreenFormat.RGB24)
+            game.set_sound_enabled(False)
+            game.set_living_reward(0.0)
+            game.set_episode_timeout(2100)
+            game.set_available_buttons(BUTTONS)
+            game.set_available_game_variables([GameVariable.HEALTH, GameVariable.KILLCOUNT])
+            game.init()
+            game.new_episode()
+            return game
+        except Exception as exc:
+            print(f"classic_iwad_init_failed={exc}", file=sys.stderr)
+
+    # Fallback to known-good ViZDoom basic scenario.
+    game = DoomGame()
+    if not basic_cfg.exists() or not basic_wad.exists():
+        raise RuntimeError("Fallback scenario assets missing (basic.wad/basic.cfg)")
+    game.load_config(str(basic_cfg))
+    game.set_doom_scenario_path(str(basic_wad))
     game.set_mode(Mode.PLAYER)
     game.set_seed(seed)
     game.set_window_visible(False)

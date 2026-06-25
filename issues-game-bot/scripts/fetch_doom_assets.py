@@ -2,10 +2,13 @@
 from pathlib import Path
 from urllib.request import urlretrieve
 
+from vizdoom import scenarios_path
+
 DOOM1_WAD_URL = "https://distro.ibiblio.org/slitaz/sources/packages/d/doom1.wad"
 
 
 def main() -> int:
+    src = Path(scenarios_path)
     dest = Path(__file__).resolve().parent / "assets"
     dest.mkdir(parents=True, exist_ok=True)
 
@@ -19,6 +22,11 @@ def main() -> int:
 
     if wad_path.stat().st_size <= 1024:
         raise RuntimeError("Downloaded IWAD appears invalid")
+
+    # Keep a guaranteed fallback renderer path.
+    for filename in ["basic.wad", "basic.cfg"]:
+        data = (src / filename).read_bytes()
+        (dest / filename).write_bytes(data)
 
     print(f"Saved IWAD: {wad_path}")
     return 0

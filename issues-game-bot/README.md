@@ -53,6 +53,6 @@ Required vars:
 
 ## Notes
 - This is still turn-based because GitHub comments are event-driven.
-- Renderer now uses real Doom engine frames from ViZDoom with shareware `doom1.wad` (E1M1).
+- Renderer tries shareware `doom1.wad` classic start (E1M1) first, with automatic fallback to ViZDoom `basic` scenario if classic init fails on host runtime.
 - Sessions: `data/sessions/<issue>.json`
 - Frames: `data/frames/<issue>.png`

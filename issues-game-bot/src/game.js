@@ -70,7 +70,7 @@ export function summarizeState(state) {
     kills: "engine-managed",
     targetKills: "n/a",
     status: state.status,
-    commands: "w=forward a=turn-left s=back d=turn-right fire/enter=shoot",
+    commands: "w=forward a=turn-left s=back d=turn-right fire=shoot enter=use",
     renderer: "vizdoom"
   };
 }

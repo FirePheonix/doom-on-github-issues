@@ -1,12 +1,12 @@
 # Issues Doom Bot
 
-Turn-based Doom sessions driven by GitHub Issues/comments, rendered with a real Doom engine backend (ViZDoom).
+Turn-based Doom sessions driven by GitHub Issues/comments, rendered with a real Doom engine backend (ViZDoom) on classic Doom shareware IWAD.
 
 ## How it works
 - New issue opens a new session (`issue_number` == session ID).
 - Every new comment is one input action.
 - Node webhook handler stores session state/history.
-- Python worker (`scripts/doom_worker.py`) replays history in ViZDoom and writes a PNG frame.
+- Python worker (`scripts/doom_worker.py`) replays history in ViZDoom (E1M1 start) and writes a PNG frame.
 - Issue body embeds `/frames/<issue>.png` so each action updates graphics.
 
 ## Commands
@@ -26,7 +26,7 @@ npm install
 2. Install Python deps:
 ```bash
 pip install -r requirements.txt
-python scripts/fetch_vizdoom_assets.py
+python scripts/fetch_doom_assets.py
 ```
 3. Configure env (`.env`).
 4. Run server:
@@ -53,6 +53,6 @@ Required vars:
 
 ## Notes
 - This is still turn-based because GitHub comments are event-driven.
-- Renderer now uses real Doom engine frames from ViZDoom (scenario assets).
+- Renderer now uses real Doom engine frames from ViZDoom with shareware `doom1.wad` (E1M1).
 - Sessions: `data/sessions/<issue>.json`
 - Frames: `data/frames/<issue>.png`

@@ -103,6 +103,7 @@ export function createServer() {
   const webhookSecret = process.env.GITHUB_WEBHOOK_SECRET || "";
   const issueCooldownMs = 1200;
   const issueLastProcessedAt = new Map();
+  const issueJobStatus = new Map();
 
   function shouldThrottle(issueNumber) {
     const now = Date.now();
@@ -121,6 +122,17 @@ export function createServer() {
 
   app.get("/health", (_req, res) => {
     res.json({ ok: true, githubConfigured: Boolean(github) });
+  });
+
+  app.get("/debug/issues/:issueNumber", (req, res) => {
+    const issueNumber = Number(req.params.issueNumber);
+    if (!Number.isFinite(issueNumber)) {
+      res.status(400).json({ ok: false, error: "invalid_issue_number" });
+      return;
+    }
+
+    const status = issueJobStatus.get(issueNumber) || { state: "unknown" };
+    res.json({ ok: true, issueNumber, status });
   });
 
   app.get("/frames/:issueNumber.png", async (req, res) => {
@@ -162,12 +174,30 @@ export function createServer() {
         res.status(403).json({ ok: false, error: "unexpected_repository" });
         return;
       }
-      const schedule = (job) => {
+      const schedule = (issueNumber, job) => {
+        issueJobStatus.set(issueNumber, {
+          state: "queued",
+          at: new Date().toISOString()
+        });
         setImmediate(async () => {
           try {
+            issueJobStatus.set(issueNumber, {
+              state: "running",
+              at: new Date().toISOString()
+            });
             await ensureEngineAssets(projectRoot);
             await job();
+            issueJobStatus.set(issueNumber, {
+              state: "completed",
+              at: new Date().toISOString()
+            });
           } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            issueJobStatus.set(issueNumber, {
+              state: "failed",
+              at: new Date().toISOString(),
+              error: message
+            });
             console.error("Webhook job failed:", error);
           }
         });
@@ -180,7 +210,7 @@ export function createServer() {
           return;
         }
 
-        schedule(async () => {
+        schedule(issueNumber, async () => {
           await lockStore.withIssueLock(issueNumber, async () => {
             await ensureDataDir();
             const state = createSession(issueNumber);
@@ -214,7 +244,7 @@ export function createServer() {
           return;
         }
 
-        schedule(async () => {
+        schedule(issueNumber, async () => {
           await lockStore.withIssueLock(issueNumber, async () => {
             await ensureDataDir();
 

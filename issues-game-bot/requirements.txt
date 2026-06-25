@@ -1,0 +1,2 @@
+vizdoom==1.2.4
+Pillow==10.4.0

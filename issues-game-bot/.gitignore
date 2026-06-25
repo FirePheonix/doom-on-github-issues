@@ -3,3 +3,4 @@ node_modules/
 data/sessions/*.json
 data/frames/*.png
 smoke-frame.png
+scripts/assets/

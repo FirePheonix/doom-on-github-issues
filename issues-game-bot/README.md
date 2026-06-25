@@ -35,7 +35,7 @@ npm start
 ```
 
 ## Railway deploy
-This project includes `nixpacks.toml` so Railway installs both Node and Python + ViZDoom requirements.
+Use Docker deploy for this service (`issues-game-bot/Dockerfile`) so Node and Python/ViZDoom are always installed together.
 
 Required vars:
 - `GITHUB_TOKEN`

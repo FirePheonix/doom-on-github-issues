@@ -23,8 +23,8 @@ def main() -> int:
     if wad_path.stat().st_size <= 1024:
         raise RuntimeError("Downloaded IWAD appears invalid")
 
-    # Keep a guaranteed fallback renderer path.
-    for filename in ["basic.wad", "basic.cfg"]:
+    # Keep guaranteed scenario renderer paths.
+    for filename in ["basic.wad", "basic.cfg", "defend_the_center.wad", "defend_the_center.cfg"]:
         data = (src / filename).read_bytes()
         (dest / filename).write_bytes(data)
 

@@ -126,6 +126,7 @@ export function createServer() {
   const lockStore = createLockStore();
   const webhookSecret = process.env.GITHUB_WEBHOOK_SECRET || "";
   const issueCooldownMs = 1200;
+  const bootDelayMs = Number(process.env.DOOM_BOOT_DELAY_MS || "2500");
   const issueLastProcessedAt = new Map();
   const issueJobStatus = new Map();
 
@@ -198,12 +199,12 @@ export function createServer() {
         res.status(403).json({ ok: false, error: "unexpected_repository" });
         return;
       }
-      const schedule = (issueNumber, job) => {
+      const schedule = (issueNumber, job, delayMs = 0) => {
         issueJobStatus.set(issueNumber, {
           state: "queued",
           at: new Date().toISOString()
         });
-        setImmediate(async () => {
+        setTimeout(async () => {
           try {
             issueJobStatus.set(issueNumber, {
               state: "running",
@@ -224,7 +225,7 @@ export function createServer() {
             });
             console.error("Webhook job failed:", error);
           }
-        });
+        }, Math.max(0, delayMs));
       };
 
       if (event === "issues" && payload?.action === "opened") {
@@ -243,7 +244,7 @@ export function createServer() {
             await persistSessionArtifacts(projectRoot, issueNumber, state);
             await updateIssueView(github, owner, repo, issueNumber, payload.issue.body || "", req, state);
           });
-        });
+        }, bootDelayMs);
         res.status(202).json({ ok: true, accepted: "issues.opened", issueNumber });
         return;
       }

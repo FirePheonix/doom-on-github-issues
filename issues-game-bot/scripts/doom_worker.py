@@ -46,16 +46,42 @@ def action_for(command: str) -> list[int]:
 def build_game(seed: int) -> DoomGame:
     assets_root = Path(__file__).resolve().parent / "assets"
     iwad_path = assets_root / "doom1.wad"
+    demon_cfg = assets_root / "defend_the_center.cfg"
+    demon_wad = assets_root / "defend_the_center.wad"
     basic_cfg = assets_root / "basic.cfg"
     basic_wad = assets_root / "basic.wad"
+    mode = os.getenv("DOOM_MODE", "demons").strip().lower()
 
-    if not iwad_path.exists() and not (basic_cfg.exists() and basic_wad.exists()):
+    if (
+        not iwad_path.exists()
+        and not (demon_cfg.exists() and demon_wad.exists())
+        and not (basic_cfg.exists() and basic_wad.exists())
+    ):
         raise RuntimeError(
             "Missing assets. Run scripts/fetch_doom_assets.py first."
         )
 
+    # Default path: demon combat scenario.
+    if mode in {"demons", "scenario"} and demon_cfg.exists() and demon_wad.exists():
+        game = DoomGame()
+        game.load_config(str(demon_cfg))
+        game.set_doom_scenario_path(str(demon_wad))
+        game.set_mode(Mode.PLAYER)
+        game.set_seed(seed)
+        game.set_window_visible(False)
+        game.set_screen_resolution(ScreenResolution.RES_320X240)
+        game.set_screen_format(ScreenFormat.RGB24)
+        game.set_sound_enabled(False)
+        game.set_living_reward(0.0)
+        game.set_episode_timeout(2100)
+        game.set_available_buttons(BUTTONS)
+        game.set_available_game_variables([GameVariable.HEALTH, GameVariable.KILLCOUNT])
+        game.init()
+        game.new_episode()
+        return game
+
     # Try classic shareware IWAD mode first.
-    if iwad_path.exists():
+    if mode == "classic" and iwad_path.exists():
         try:
             game = DoomGame()
             game.set_doom_game_path(str(iwad_path))

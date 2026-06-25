@@ -44,6 +44,8 @@ Required vars:
 - `GITHUB_WEBHOOK_SECRET`
 - `PUBLIC_BASE_URL=https://<your-railway-domain>`
 - Optional: `PYTHON_BIN=python3`, `DOOM_TICS_PER_COMMENT=5`
+- Optional: `DOOM_BOOT_DELAY_MS=2500` (forces a visible loading screen before first frame render)
+- Optional: `DOOM_MODE=demons|classic` (default `demons`; use `classic` to attempt IWAD startup path)
 
 ## GitHub webhook
 - URL: `https://<domain>/webhook`
@@ -53,6 +55,6 @@ Required vars:
 
 ## Notes
 - This is still turn-based because GitHub comments are event-driven.
-- Renderer tries shareware `doom1.wad` classic start (E1M1) first, with automatic fallback to ViZDoom `basic` scenario if classic init fails on host runtime.
+- Renderer defaults to a demon combat scenario (`defend_the_center`) for reliable enemy gameplay in Issues mode.
 - Sessions: `data/sessions/<issue>.json`
 - Frames: `data/frames/<issue>.png`

@@ -103,15 +103,6 @@ export function createServer() {
   const webhookSecret = process.env.GITHUB_WEBHOOK_SECRET || "";
   const issueCooldownMs = 1200;
   const issueLastProcessedAt = new Map();
-  let botLoginPromise = null;
-
-  async function getBotLogin() {
-    if (!github) return null;
-    if (!botLoginPromise) {
-      botLoginPromise = github.rest.users.getAuthenticated().then((r) => r.data.login);
-    }
-    return botLoginPromise;
-  }
 
   function shouldThrottle(issueNumber) {
     const now = Date.now();
@@ -207,8 +198,7 @@ export function createServer() {
           return;
         }
 
-        const botLogin = await getBotLogin();
-        if (botLogin && payload.comment?.user?.login === botLogin) {
+        if (payload.comment?.user?.type === "Bot") {
           res.status(200).json({ ok: true, ignored: "self_comment" });
           return;
         }

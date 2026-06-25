@@ -2,6 +2,8 @@ FROM node:20-bookworm-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHON_BIN=python3
+ENV VIRTUAL_ENV=/opt/venv
+ENV PATH="/opt/venv/bin:${PATH}"
 
 WORKDIR /app
 
@@ -19,10 +21,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY package*.json ./
 COPY requirements.txt ./
 RUN npm ci
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN python3 -m venv /opt/venv
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-RUN python3 scripts/fetch_vizdoom_assets.py
+RUN python scripts/fetch_vizdoom_assets.py
 
 EXPOSE 8080
 CMD ["npm", "start"]

@@ -36,7 +36,7 @@ export async function ensureEngineAssets(projectRoot) {
 
   const scriptsDir = path.join(projectRoot, "scripts");
   const cmd = getPythonBin();
-  ensureEngineAssets._ready = runProcess(cmd, ["fetch_vizdoom_assets.py"], scriptsDir);
+  ensureEngineAssets._ready = runProcess(cmd, ["fetch_doom_assets.py"], scriptsDir);
   return ensureEngineAssets._ready;
 }
 

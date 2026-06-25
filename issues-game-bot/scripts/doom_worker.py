@@ -9,6 +9,7 @@ from vizdoom import (
     Button,
     DoomGame,
     Mode,
+    GameVariable,
     ScreenFormat,
     ScreenResolution,
 )
@@ -20,12 +21,13 @@ BUTTONS = [
     Button.TURN_LEFT,
     Button.TURN_RIGHT,
     Button.ATTACK,
+    Button.USE,
 ]
 
 
 def action_for(command: str) -> list[int]:
     cmd = (command or "").strip().lower()
-    action = [0, 0, 0, 0, 0]
+    action = [0, 0, 0, 0, 0, 0]
     if cmd == "w":
         action[0] = 1
     elif cmd == "s":
@@ -34,32 +36,37 @@ def action_for(command: str) -> list[int]:
         action[2] = 1
     elif cmd == "d":
         action[3] = 1
-    elif cmd in {"fire", "enter"}:
+    elif cmd == "fire":
         action[4] = 1
+    elif cmd == "enter":
+        action[5] = 1
     return action
 
 
 def build_game(seed: int) -> DoomGame:
     game = DoomGame()
 
-    scenario_root = Path(__file__).resolve().parent / "assets"
-    cfg_path = scenario_root / "basic.cfg"
-    wad_path = scenario_root / "basic.wad"
+    assets_root = Path(__file__).resolve().parent / "assets"
+    iwad_path = assets_root / "doom1.wad"
 
-    if not cfg_path.exists() or not wad_path.exists():
+    if not iwad_path.exists():
         raise RuntimeError(
-            "Missing ViZDoom scenario assets. Run scripts/fetch_vizdoom_assets.py first."
+            "Missing doom1.wad. Run scripts/fetch_doom_assets.py first."
         )
 
-    game.load_config(str(cfg_path))
-    game.set_doom_scenario_path(str(wad_path))
+    game.add_game_args(f"-iwad {iwad_path}")
+    game.set_doom_map("E1M1")
+    game.add_game_args("+skill 2")
     game.set_mode(Mode.PLAYER)
     game.set_seed(seed)
     game.set_window_visible(False)
     game.set_screen_resolution(ScreenResolution.RES_320X240)
     game.set_screen_format(ScreenFormat.RGB24)
     game.set_sound_enabled(False)
+    game.set_living_reward(0.0)
+    game.set_episode_timeout(2100)
     game.set_available_buttons(BUTTONS)
+    game.set_available_game_variables([GameVariable.HEALTH, GameVariable.KILLCOUNT])
     game.init()
     game.new_episode()
     return game

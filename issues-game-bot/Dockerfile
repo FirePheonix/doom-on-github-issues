@@ -26,7 +26,7 @@ RUN python3 -m venv /opt/venv
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-RUN python scripts/fetch_vizdoom_assets.py
+RUN python scripts/fetch_doom_assets.py
 
 EXPOSE 8080
 CMD ["npm", "start"]

@@ -41,3 +41,5 @@ npm start
 ## Notes
 - This is intentionally turn-based; each comment advances one game step.
 - Session files are in `data/sessions/<issue>.json`.
+- Webhooks are validated by signature and repository match.
+- Rapid duplicate comments are throttled per issue.

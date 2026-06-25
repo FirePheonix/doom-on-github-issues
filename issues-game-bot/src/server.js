@@ -66,11 +66,38 @@ function getIssueNumber(payload) {
   return payload?.issue?.number;
 }
 
+function isExpectedRepo(payload, owner, repo) {
+  const gotOwner = payload?.repository?.owner?.login;
+  const gotRepo = payload?.repository?.name;
+  return gotOwner === owner && gotRepo === repo;
+}
+
 export function createServer() {
   const app = express();
   const github = createGithubClient();
   const lockStore = createLockStore();
   const webhookSecret = process.env.GITHUB_WEBHOOK_SECRET || "";
+  const issueCooldownMs = 1200;
+  const issueLastProcessedAt = new Map();
+  let botLoginPromise = null;
+
+  async function getBotLogin() {
+    if (!github) return null;
+    if (!botLoginPromise) {
+      botLoginPromise = github.rest.users.getAuthenticated().then((r) => r.data.login);
+    }
+    return botLoginPromise;
+  }
+
+  function shouldThrottle(issueNumber) {
+    const now = Date.now();
+    const last = issueLastProcessedAt.get(issueNumber) || 0;
+    if (now - last < issueCooldownMs) {
+      return true;
+    }
+    issueLastProcessedAt.set(issueNumber, now);
+    return false;
+  }
 
   app.use(express.json({
     limit: "1mb",
@@ -101,6 +128,10 @@ export function createServer() {
       const repo = requiredEnv("GITHUB_REPO");
       const event = req.get("x-github-event");
       const payload = req.body;
+      if (!isExpectedRepo(payload, owner, repo)) {
+        res.status(403).json({ ok: false, error: "unexpected_repository" });
+        return;
+      }
 
       if (event === "issues" && payload?.action === "opened") {
         const issueNumber = getIssueNumber(payload);
@@ -127,6 +158,22 @@ export function createServer() {
           res.status(200).json({ ok: true, ignored: "missing_issue_number" });
           return;
         }
+        if (shouldThrottle(issueNumber)) {
+          res.status(200).json({ ok: true, ignored: "issue_cooldown" });
+          return;
+        }
+
+        const commentBody = payload.comment?.body || "";
+        if (commentBody.trim().length === 0) {
+          res.status(200).json({ ok: true, ignored: "empty_comment" });
+          return;
+        }
+
+        const botLogin = await getBotLogin();
+        if (botLogin && payload.comment?.user?.login === botLogin) {
+          res.status(200).json({ ok: true, ignored: "self_comment" });
+          return;
+        }
 
         await lockStore.withIssueLock(issueNumber, async () => {
           await ensureDataDir();
@@ -138,7 +185,7 @@ export function createServer() {
             state = createSession(issueNumber);
           }
 
-          stepSession(state, payload.comment?.body || "");
+          stepSession(state, commentBody);
           await saveSession(issueNumber, state);
           const frame = renderFrame(state);
           await updateIssueView(github, owner, repo, issueNumber, payload.issue.body || "", frame);

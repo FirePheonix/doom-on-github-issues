@@ -3,8 +3,8 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { Octokit } from "@octokit/rest";
 import { createSession, stepSession, summarizeState } from "./game.js";
 import { formatIssueSection, mergeIssueBody } from "./issueBody.js";
-import { ensureDataDir, getFramePath, hasSession, loadSession, saveFrame, saveSession } from "./storage.js";
-import { renderPngFrame } from "./renderer.js";
+import { ensureDataDir, getFramePath, getSessionPath, hasSession, loadSession, saveSession } from "./storage.js";
+import { ensureEngineAssets, renderEngineFrame } from "./engine.js";
 
 function verifySignature(secret, rawBody, received) {
   if (!secret) return true;
@@ -90,13 +90,13 @@ async function updateIssueView(octokit, owner, repo, issueNumber, body, req, sta
   });
 }
 
-async function persistSessionArtifacts(issueNumber, state) {
+async function persistSessionArtifacts(projectRoot, issueNumber, state) {
   await saveSession(issueNumber, state);
-  const png = renderPngFrame(state);
-  await saveFrame(issueNumber, png);
+  await renderEngineFrame(projectRoot, getSessionPath(issueNumber), getFramePath(issueNumber));
 }
 
 export function createServer() {
+  const projectRoot = process.cwd();
   const app = express();
   const github = createGithubClient();
   const lockStore = createLockStore();
@@ -163,6 +163,8 @@ export function createServer() {
         return;
       }
 
+      await ensureEngineAssets(projectRoot);
+
       if (event === "issues" && payload?.action === "opened") {
         const issueNumber = getIssueNumber(payload);
         if (!issueNumber) {
@@ -173,7 +175,7 @@ export function createServer() {
         await lockStore.withIssueLock(issueNumber, async () => {
           await ensureDataDir();
           const state = createSession(issueNumber);
-          await persistSessionArtifacts(issueNumber, state);
+          await persistSessionArtifacts(projectRoot, issueNumber, state);
           await updateIssueView(github, owner, repo, issueNumber, payload.issue.body || "", req, state);
         });
 
@@ -214,7 +216,7 @@ export function createServer() {
           }
 
           stepSession(state, commentBody);
-          await persistSessionArtifacts(issueNumber, state);
+          await persistSessionArtifacts(projectRoot, issueNumber, state);
           await updateIssueView(github, owner, repo, issueNumber, payload.issue.body || "", req, state);
         });
 

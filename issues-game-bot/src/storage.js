@@ -5,7 +5,7 @@ const dataDir = path.resolve(process.cwd(), "data");
 const sessionsDir = path.join(dataDir, "sessions");
 const framesDir = path.join(dataDir, "frames");
 
-function getSessionPath(issueNumber) {
+export function getSessionPath(issueNumber) {
   return path.join(sessionsDir, `${issueNumber}.json`);
 }
 

@@ -5,11 +5,11 @@
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "dev": "node --watch src/index.js",
+    "render:smoke": "node src/smoke.js"
   },
   "dependencies": {
     "@octokit/rest": "^22.0.0",
-    "express": "^5.1.0",
-    "pngjs": "^7.0.0"
+    "express": "^5.1.0"
   }
 }

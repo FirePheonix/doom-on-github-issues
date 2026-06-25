@@ -14,6 +14,7 @@ export function formatIssueSection({ stateSummary, imageUrl, logs }) {
     `- hp: ${stateSummary.hp}`,
     `- kills: ${stateSummary.kills}/${stateSummary.targetKills}`,
     `- status: ${stateSummary.status}`,
+    `- renderer: ${stateSummary.renderer}`,
     `- controls: ${stateSummary.commands}`,
     "",
     "Recent log:",

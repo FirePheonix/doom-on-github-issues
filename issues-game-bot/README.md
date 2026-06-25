@@ -1,60 +1,58 @@
 # Issues Doom Bot
 
-Turn-based Doom-like game sessions driven by GitHub Issues and comments, rendered as PNG frames.
+Turn-based Doom sessions driven by GitHub Issues/comments, rendered with a real Doom engine backend (ViZDoom).
 
 ## How it works
-- New issue opens a new game session (`issue_number` == session ID).
-- Every new comment is one command tick.
-- The bot raycasts a new frame and saves `data/frames/<issue>.png`.
-- The issue body embeds the latest frame image URL.
+- New issue opens a new session (`issue_number` == session ID).
+- Every new comment is one input action.
+- Node webhook handler stores session state/history.
+- Python worker (`scripts/doom_worker.py`) replays history in ViZDoom and writes a PNG frame.
+- Issue body embeds `/frames/<issue>.png` so each action updates graphics.
 
 ## Commands
 - `w`: move forward
 - `s`: move backward
 - `a`: turn left
 - `d`: turn right
-- `fire` (or `enter`): shoot
+- `fire` (or `enter`): attack
 - `restart`
 - `help`
 
-## Setup
-1. Install deps:
+## Local setup
+1. Install Node deps:
 ```bash
 npm install
 ```
-2. Create env file:
+2. Install Python deps:
 ```bash
-cp .env.example .env
+pip install -r requirements.txt
+python scripts/fetch_vizdoom_assets.py
 ```
-3. Set env values:
-- `GITHUB_TOKEN`: token with `Issues: Read and write`
-- `GITHUB_OWNER`, `GITHUB_REPO`
-- `GITHUB_WEBHOOK_SECRET`
-- Optional `PUBLIC_BASE_URL` (recommended on hosted deployments)
-4. Run locally:
+3. Configure env (`.env`).
+4. Run server:
 ```bash
 npm start
 ```
-5. Create GitHub webhook:
-- Payload URL: `https://<your-host>/webhook`
-- Content type: `application/json`
-- Secret: same as `GITHUB_WEBHOOK_SECRET`
-- Events: `Issues`, `Issue comment`
 
 ## Railway deploy
-1. Deploy from GitHub repo.
-2. Root directory: `issues-game-bot`.
-3. Build command: `npm ci`
-4. Start command: `npm start`
-5. Add variables:
+This project includes `nixpacks.toml` so Railway installs both Node and Python + ViZDoom requirements.
+
+Required vars:
 - `GITHUB_TOKEN`
 - `GITHUB_OWNER`
 - `GITHUB_REPO`
 - `GITHUB_WEBHOOK_SECRET`
-- `PUBLIC_BASE_URL=https://<your-domain>`
+- `PUBLIC_BASE_URL=https://<your-railway-domain>`
+- Optional: `PYTHON_BIN=python3`, `DOOM_TICS_PER_COMMENT=5`
+
+## GitHub webhook
+- URL: `https://<domain>/webhook`
+- Content type: `application/json`
+- Secret: same as `GITHUB_WEBHOOK_SECRET`
+- Events: `Issues`, `Issue comments`
 
 ## Notes
-- This is turn-based via GitHub comments, not real-time.
-- Sessions are in `data/sessions/<issue>.json`.
-- Frames are in `data/frames/<issue>.png`.
-- Webhooks are validated by signature and repository match.
+- This is still turn-based because GitHub comments are event-driven.
+- Renderer now uses real Doom engine frames from ViZDoom (scenario assets).
+- Sessions: `data/sessions/<issue>.json`
+- Frames: `data/frames/<issue>.png`

@@ -1,30 +1,16 @@
 import { createHash } from "node:crypto";
 
-const WORLD_WIDTH = 30;
-const WORLD_HEIGHT = 16;
-const MAX_HP = 4;
-const WIN_KILLS = 12;
+const MAP_W = 24;
+const MAP_H = 24;
+const MAX_HP = 6;
+const WIN_KILLS = 15;
+const MOVE_STEP = 0.28;
+const TURN_STEP = 0.26;
 
-const ALLOWED_COMMANDS = new Set([
-  "w",
-  "a",
-  "s",
-  "d",
-  "fire",
-  "enter",
-  "help",
-  "restart"
-]);
-
-const DIRECTIONS = {
-  w: { dx: 0, dy: -1 },
-  s: { dx: 0, dy: 1 },
-  a: { dx: -1, dy: 0 },
-  d: { dx: 1, dy: 0 }
-};
+const ALLOWED_COMMANDS = new Set(["w", "a", "s", "d", "fire", "enter", "help", "restart"]);
 
 function nextRng(seed) {
-  return (seed * 1103515245 + 12345) & 0x7fffffff;
+  return (seed * 1664525 + 1013904223) >>> 0;
 }
 
 function rand(state, max) {
@@ -33,24 +19,22 @@ function rand(state, max) {
 }
 
 function buildMap() {
-  const map = Array.from({ length: WORLD_HEIGHT }, () => Array.from({ length: WORLD_WIDTH }, () => "."));
+  const map = Array.from({ length: MAP_H }, () => Array.from({ length: MAP_W }, () => 0));
 
-  for (let x = 0; x < WORLD_WIDTH; x += 1) {
-    map[0][x] = "#";
-    map[WORLD_HEIGHT - 1][x] = "#";
+  for (let x = 0; x < MAP_W; x += 1) {
+    map[0][x] = 1;
+    map[MAP_H - 1][x] = 1;
+  }
+  for (let y = 0; y < MAP_H; y += 1) {
+    map[y][0] = 1;
+    map[y][MAP_W - 1] = 1;
   }
 
-  for (let y = 0; y < WORLD_HEIGHT; y += 1) {
-    map[y][0] = "#";
-    map[y][WORLD_WIDTH - 1] = "#";
-  }
-
-  for (let y = 2; y < WORLD_HEIGHT - 2; y += 4) {
-    for (let x = 3; x < WORLD_WIDTH - 3; x += 7) {
-      map[y][x] = "#";
-      if (y + 1 < WORLD_HEIGHT - 1) {
-        map[y + 1][x] = "#";
-      }
+  for (let y = 2; y < MAP_H - 2; y += 4) {
+    for (let x = 2; x < MAP_W - 2; x += 6) {
+      map[y][x] = 1;
+      if (x + 1 < MAP_W - 1) map[y][x + 1] = 1;
+      if (y + 1 < MAP_H - 1 && (x / 2) % 2 === 0) map[y + 1][x] = 1;
     }
   }
 
@@ -58,22 +42,31 @@ function buildMap() {
 }
 
 function isWalkable(map, x, y) {
-  if (x < 0 || y < 0 || y >= map.length || x >= map[0].length) {
-    return false;
-  }
-  return map[y][x] !== "#";
+  const xi = Math.floor(x);
+  const yi = Math.floor(y);
+  if (xi < 0 || yi < 0 || xi >= MAP_W || yi >= MAP_H) return false;
+  return map[yi][xi] === 0;
+}
+
+function movePlayer(state, dx, dy) {
+  const px = state.player.x;
+  const py = state.player.y;
+  const nx = px + dx;
+  const ny = py + dy;
+
+  if (isWalkable(state.map, nx, py)) state.player.x = nx;
+  if (isWalkable(state.map, state.player.x, ny)) state.player.y = ny;
 }
 
 function spawnDemon(state) {
-  const map = state.map;
-  for (let tries = 0; tries < 30; tries += 1) {
-    const x = 1 + rand(state, WORLD_WIDTH - 2);
-    const y = 1 + rand(state, WORLD_HEIGHT - 2);
-    if (!isWalkable(map, x, y)) continue;
+  for (let tries = 0; tries < 120; tries += 1) {
+    const x = 1.5 + rand(state, MAP_W - 3);
+    const y = 1.5 + rand(state, MAP_H - 3);
+    if (!isWalkable(state.map, x, y)) continue;
 
-    const occupied = state.demons.some((d) => d.x === x && d.y === y);
-    const onPlayer = state.player.x === x && state.player.y === y;
-    if (!occupied && !onPlayer) {
+    const farEnough = Math.hypot(x - state.player.x, y - state.player.y) > 5;
+    const occupied = state.demons.some((d) => Math.hypot(d.x - x, d.y - y) < 0.8);
+    if (farEnough && !occupied) {
       state.demons.push({ id: state.nextDemonId++, x, y, hp: 1 });
       return;
     }
@@ -81,7 +74,7 @@ function spawnDemon(state) {
 }
 
 export function createSession(issueNumber) {
-  const seed = Number.parseInt(createHash("md5").update(String(issueNumber)).digest("hex").slice(0, 8), 16);
+  const seed = Number.parseInt(createHash("sha1").update(String(issueNumber)).digest("hex").slice(0, 8), 16);
   const state = {
     issueNumber,
     tick: 0,
@@ -91,19 +84,17 @@ export function createSession(issueNumber) {
     kills: 0,
     map: buildMap(),
     player: {
-      x: 2,
-      y: 2,
-      hp: MAX_HP,
-      facing: "d"
+      x: 3.5,
+      y: 3.5,
+      angle: 0,
+      hp: MAX_HP
     },
     demons: [],
-    log: ["Doom issue session started. One comment is one turn."],
+    log: ["Session started. Real frame pipeline enabled."],
     commandQueue: []
   };
 
-  for (let i = 0; i < 2; i += 1) {
-    spawnDemon(state);
-  }
+  for (let i = 0; i < 4; i += 1) spawnDemon(state);
   return state;
 }
 
@@ -114,44 +105,41 @@ export function normalizeCommand(input) {
   return ALLOWED_COMMANDS.has(token) ? token : null;
 }
 
+function fire(state) {
+  const coneHalf = 0.14;
+  const maxDistance = 10;
+  let best = null;
+
+  for (const demon of state.demons) {
+    const dx = demon.x - state.player.x;
+    const dy = demon.y - state.player.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist > maxDistance) continue;
+
+    const ang = Math.atan2(dy, dx);
+    let delta = ang - state.player.angle;
+    while (delta > Math.PI) delta -= Math.PI * 2;
+    while (delta < -Math.PI) delta += Math.PI * 2;
+
+    if (Math.abs(delta) <= coneHalf) {
+      if (!best || dist < best.dist) best = { id: demon.id, dist };
+    }
+  }
+
+  if (best) {
+    state.demons = state.demons.filter((d) => d.id !== best.id);
+    state.kills += 1;
+    state.log.unshift("Direct hit.");
+    return;
+  }
+
+  state.log.unshift("Shot missed.");
+}
+
 function restartInPlace(state) {
   const fresh = createSession(state.issueNumber);
   Object.assign(state, fresh);
   state.log.unshift("Session restarted.");
-}
-
-function movePlayer(state, dir) {
-  const vec = DIRECTIONS[dir];
-  if (!vec) return;
-
-  const nx = state.player.x + vec.dx;
-  const ny = state.player.y + vec.dy;
-  state.player.facing = dir;
-
-  if (isWalkable(state.map, nx, ny)) {
-    state.player.x = nx;
-    state.player.y = ny;
-  }
-}
-
-function fire(state) {
-  const facing = DIRECTIONS[state.player.facing] || DIRECTIONS.d;
-  let x = state.player.x + facing.dx;
-  let y = state.player.y + facing.dy;
-
-  while (isWalkable(state.map, x, y)) {
-    const demon = state.demons.find((d) => d.x === x && d.y === y);
-    if (demon) {
-      state.demons = state.demons.filter((d) => d.id !== demon.id);
-      state.kills += 1;
-      state.log.unshift("Direct hit.");
-      return;
-    }
-    x += facing.dx;
-    y += facing.dy;
-  }
-
-  state.log.unshift("Shot missed.");
 }
 
 function processCommand(state, command, rawCommand) {
@@ -159,10 +147,9 @@ function processCommand(state, command, rawCommand) {
     state.log.unshift(`Unknown command: ${rawCommand.trim().split(/\s+/)[0]}`);
     return;
   }
-
   if (!command) return;
-  state.commandQueue.push(command);
 
+  state.commandQueue.push(command);
   const next = state.commandQueue.shift();
   if (!next) return;
 
@@ -181,53 +168,53 @@ function processCommand(state, command, rawCommand) {
     return;
   }
 
-  if (["w", "a", "s", "d"].includes(next)) {
-    movePlayer(state, next);
+  if (next === "a") {
+    state.player.angle -= TURN_STEP;
     return;
   }
-
+  if (next === "d") {
+    state.player.angle += TURN_STEP;
+    return;
+  }
+  if (next === "w") {
+    movePlayer(state, Math.cos(state.player.angle) * MOVE_STEP, Math.sin(state.player.angle) * MOVE_STEP);
+    return;
+  }
+  if (next === "s") {
+    movePlayer(state, -Math.cos(state.player.angle) * MOVE_STEP, -Math.sin(state.player.angle) * MOVE_STEP);
+    return;
+  }
   if (next === "fire" || next === "enter") {
     fire(state);
   }
 }
 
-function moveDemonTowardPlayer(state, demon) {
-  const options = [
-    { dx: Math.sign(state.player.x - demon.x), dy: 0 },
-    { dx: 0, dy: Math.sign(state.player.y - demon.y) }
-  ];
-
-  for (const option of options) {
-    if (option.dx === 0 && option.dy === 0) continue;
-    const nx = demon.x + option.dx;
-    const ny = demon.y + option.dy;
-
-    if (!isWalkable(state.map, nx, ny)) continue;
-
-    const occupied = state.demons.some((d) => d.id !== demon.id && d.x === nx && d.y === ny);
-    if (!occupied) {
-      demon.x = nx;
-      demon.y = ny;
-      return;
-    }
-  }
-}
-
 function updateDemons(state) {
-  let damagedThisTick = false;
-  for (const demon of state.demons) {
-    moveDemonTowardPlayer(state, demon);
+  let damaged = false;
 
-    if (!damagedThisTick && demon.x === state.player.x && demon.y === state.player.y) {
+  for (const demon of state.demons) {
+    const dx = state.player.x - demon.x;
+    const dy = state.player.y - demon.y;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist > 0.8) {
+      const step = 0.12;
+      const nx = demon.x + (dx / dist) * step;
+      const ny = demon.y + (dy / dist) * step;
+      if (isWalkable(state.map, nx, demon.y)) demon.x = nx;
+      if (isWalkable(state.map, demon.x, ny)) demon.y = ny;
+    }
+
+    if (!damaged && Math.hypot(demon.x - state.player.x, demon.y - state.player.y) < 0.85) {
       state.player.hp -= 1;
-      damagedThisTick = true;
+      damaged = true;
       state.log.unshift("Demon clawed you.");
     }
   }
 }
 
 function maybeSpawnDemon(state) {
-  if (state.tick % 4 === 0 && state.demons.length < 5) {
+  if (state.tick % 3 === 0 && state.demons.length < 7) {
     spawnDemon(state);
   }
 }
@@ -238,7 +225,6 @@ function updateStatus(state) {
     state.log.unshift("You died.");
     return;
   }
-
   if (state.kills >= WIN_KILLS) {
     state.status = "won";
     state.log.unshift("Area cleared.");
@@ -260,22 +246,13 @@ export function stepSession(state, rawCommand) {
   return { state, acceptedCommand: command };
 }
 
-export function renderFrame(state) {
-  const grid = state.map.map((row) => row.slice());
-
-  for (const demon of state.demons) {
-    grid[demon.y][demon.x] = "d";
-  }
-
-  grid[state.player.y][state.player.x] = "@";
-
-  const legend = [
-    `tick=${state.tick} hp=${state.player.hp} kills=${state.kills}/${WIN_KILLS} status=${state.status}`,
-    "commands: w a s d fire enter restart help"
-  ];
-
-  const frame = grid.map((row) => row.join("")).join("\n");
-  const logs = state.log.map((line) => `- ${line}`).join("\n");
-
-  return `${legend.join("\n")}\n\n${frame}\n\n${logs}`;
+export function summarizeState(state) {
+  return {
+    tick: state.tick,
+    hp: state.player.hp,
+    kills: state.kills,
+    targetKills: WIN_KILLS,
+    status: state.status,
+    commands: "w=forward a=turn-left s=back d=turn-right fire/enter=shoot"
+  };
 }

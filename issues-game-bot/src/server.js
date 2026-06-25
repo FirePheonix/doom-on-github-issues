@@ -1,9 +1,10 @@
 import express from "express";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { Octokit } from "@octokit/rest";
-import { createSession, renderFrame, stepSession } from "./game.js";
+import { createSession, stepSession, summarizeState } from "./game.js";
 import { formatIssueSection, mergeIssueBody } from "./issueBody.js";
-import { ensureDataDir, hasSession, loadSession, saveSession } from "./storage.js";
+import { ensureDataDir, getFramePath, hasSession, loadSession, saveFrame, saveSession } from "./storage.js";
+import { renderPngFrame } from "./renderer.js";
 
 function verifySignature(secret, rawBody, received) {
   if (!secret) return true;
@@ -36,9 +37,7 @@ function createLockStore() {
 
 function createGithubClient() {
   const token = process.env.GITHUB_TOKEN;
-  if (!token) {
-    return null;
-  }
+  if (!token) return null;
   return new Octokit({ auth: token });
 }
 
@@ -50,8 +49,37 @@ function requiredEnv(name) {
   return value;
 }
 
-async function updateIssueView(octokit, owner, repo, issueNumber, body, frame) {
-  const section = formatIssueSection(frame);
+function getIssueNumber(payload) {
+  return payload?.issue?.number;
+}
+
+function isExpectedRepo(payload, owner, repo) {
+  const gotOwner = payload?.repository?.owner?.login;
+  const gotRepo = payload?.repository?.name;
+  return gotOwner === owner && gotRepo === repo;
+}
+
+function inferBaseUrl(req) {
+  if (process.env.PUBLIC_BASE_URL) {
+    return process.env.PUBLIC_BASE_URL.replace(/\/$/, "");
+  }
+  if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+    return `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
+  }
+
+  const host = req.get("x-forwarded-host") || req.get("host");
+  const proto = req.get("x-forwarded-proto") || "https";
+  return `${proto}://${host}`;
+}
+
+async function updateIssueView(octokit, owner, repo, issueNumber, body, req, state) {
+  const baseUrl = inferBaseUrl(req);
+  const frameUrl = `${baseUrl}/frames/${issueNumber}.png?t=${state.tick}`;
+  const section = formatIssueSection({
+    stateSummary: summarizeState(state),
+    imageUrl: frameUrl,
+    logs: state.log
+  });
   const merged = mergeIssueBody(body, section);
 
   await octokit.rest.issues.update({
@@ -62,14 +90,10 @@ async function updateIssueView(octokit, owner, repo, issueNumber, body, frame) {
   });
 }
 
-function getIssueNumber(payload) {
-  return payload?.issue?.number;
-}
-
-function isExpectedRepo(payload, owner, repo) {
-  const gotOwner = payload?.repository?.owner?.login;
-  const gotRepo = payload?.repository?.name;
-  return gotOwner === owner && gotRepo === repo;
+async function persistSessionArtifacts(issueNumber, state) {
+  await saveSession(issueNumber, state);
+  const png = renderPngFrame(state);
+  await saveFrame(issueNumber, png);
 }
 
 export function createServer() {
@@ -92,9 +116,7 @@ export function createServer() {
   function shouldThrottle(issueNumber) {
     const now = Date.now();
     const last = issueLastProcessedAt.get(issueNumber) || 0;
-    if (now - last < issueCooldownMs) {
-      return true;
-    }
+    if (now - last < issueCooldownMs) return true;
     issueLastProcessedAt.set(issueNumber, now);
     return false;
   }
@@ -108,6 +130,22 @@ export function createServer() {
 
   app.get("/health", (_req, res) => {
     res.json({ ok: true, githubConfigured: Boolean(github) });
+  });
+
+  app.get("/frames/:issueNumber.png", async (req, res) => {
+    try {
+      await ensureDataDir();
+      const issueNumber = Number(req.params.issueNumber);
+      if (!Number.isFinite(issueNumber)) {
+        res.status(400).json({ ok: false, error: "invalid_issue_number" });
+        return;
+      }
+
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+      res.sendFile(getFramePath(issueNumber));
+    } catch {
+      res.status(404).json({ ok: false, error: "frame_not_found" });
+    }
   });
 
   app.post("/webhook", async (req, res) => {
@@ -128,6 +166,7 @@ export function createServer() {
       const repo = requiredEnv("GITHUB_REPO");
       const event = req.get("x-github-event");
       const payload = req.body;
+
       if (!isExpectedRepo(payload, owner, repo)) {
         res.status(403).json({ ok: false, error: "unexpected_repository" });
         return;
@@ -143,9 +182,8 @@ export function createServer() {
         await lockStore.withIssueLock(issueNumber, async () => {
           await ensureDataDir();
           const state = createSession(issueNumber);
-          await saveSession(issueNumber, state);
-          const frame = renderFrame(state);
-          await updateIssueView(github, owner, repo, issueNumber, payload.issue.body || "", frame);
+          await persistSessionArtifacts(issueNumber, state);
+          await updateIssueView(github, owner, repo, issueNumber, payload.issue.body || "", req, state);
         });
 
         res.json({ ok: true, event: "issues.opened", issueNumber });
@@ -186,9 +224,8 @@ export function createServer() {
           }
 
           stepSession(state, commentBody);
-          await saveSession(issueNumber, state);
-          const frame = renderFrame(state);
-          await updateIssueView(github, owner, repo, issueNumber, payload.issue.body || "", frame);
+          await persistSessionArtifacts(issueNumber, state);
+          await updateIssueView(github, owner, repo, issueNumber, payload.issue.body || "", req, state);
         });
 
         res.json({ ok: true, event: "issue_comment.created", issueNumber });

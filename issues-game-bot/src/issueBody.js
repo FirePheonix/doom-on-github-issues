@@ -1,16 +1,23 @@
 const START = "<!-- ISSUE_GAME_STATE:START -->";
 const END = "<!-- ISSUE_GAME_STATE:END -->";
 
-export function formatIssueSection(frame) {
+export function formatIssueSection({ stateSummary, imageUrl, logs }) {
   return [
     START,
     "## Doom-Issues Session",
     "",
-    "Each new comment advances one turn.",
+    "Each new comment advances one action tick.",
     "",
-    "```text",
-    frame,
-    "```",
+    `![doom-frame](${imageUrl})`,
+    "",
+    `- tick: ${stateSummary.tick}`,
+    `- hp: ${stateSummary.hp}`,
+    `- kills: ${stateSummary.kills}/${stateSummary.targetKills}`,
+    `- status: ${stateSummary.status}`,
+    `- controls: ${stateSummary.commands}`,
+    "",
+    "Recent log:",
+    ...logs.map((line) => `- ${line}`),
     END
   ].join("\n");
 }

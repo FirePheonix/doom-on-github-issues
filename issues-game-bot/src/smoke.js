@@ -1,9 +1,12 @@
-import { createSession, renderFrame, stepSession } from "./game.js";
+import { createSession, stepSession, summarizeState } from "./game.js";
+import { renderPngFrame } from "./renderer.js";
+import { writeFileSync } from "node:fs";
 
 const state = createSession(42);
-
-for (const cmd of ["d", "d", "fire", "w", "fire"]) {
+for (const cmd of ["w", "d", "w", "fire", "a", "w", "fire"]) {
   stepSession(state, cmd);
 }
 
-console.log(renderFrame(state));
+const png = renderPngFrame(state);
+writeFileSync("smoke-frame.png", png);
+console.log(summarizeState(state));

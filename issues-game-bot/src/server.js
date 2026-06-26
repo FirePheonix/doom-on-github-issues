@@ -142,7 +142,7 @@ export function createServer() {
   const lockStore = createLockStore();
   const webhookSecret = process.env.GITHUB_WEBHOOK_SECRET || "";
   const issueCooldownMs = 1200;
-  const bootDelayMs = Number(process.env.DOOM_BOOT_DELAY_MS || "2500");
+  const bootDelayMs = Number(process.env.DOOM_BOOT_DELAY_MS || "500");
   const inactivityMs = Number(process.env.DOOM_INACTIVITY_MS || "300000");
   const inactivityScanMs = Number(process.env.DOOM_INACTIVITY_SCAN_MS || "60000");
   const issueLastProcessedAt = new Map();

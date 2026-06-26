@@ -48,7 +48,7 @@ Required vars:
 - `GITHUB_WEBHOOK_SECRET`
 - `PUBLIC_BASE_URL=https://<your-railway-domain>`
 - Optional: `PYTHON_BIN=python3`, `DOOM_TICS_PER_COMMENT=5`
-- Optional: `DOOM_BOOT_DELAY_MS=4500` (forces a visible loading screen before first frame render)
+- Optional: `DOOM_BOOT_DELAY_MS=500` (lower values improve first-frame delivery speed)
 - Optional: `DOOM_MODE=demons|classic` (default `demons`; use `classic` to attempt IWAD startup path)
 - Optional: `DOOM_ENGINE=doomgeneric|vizdoom` (default `doomgeneric`, falls back to vizdoom if startup fails)
 - Optional: `DOOM_INACTIVITY_MS=300000` and `DOOM_INACTIVITY_SCAN_MS=60000` (auto-pause inactive sessions and notify via issue comment)
@@ -56,6 +56,7 @@ Required vars:
   - `DOOM_FRAME_SCALE=0.8` (downscale output frame for faster transfer/render)
   - `DOOM_PNG_COMPRESS_LEVEL=3`
   - `DOOM_PNG_OPTIMIZE=false`
+  - `DOOM_TICS_PER_COMMENT=4` (lower values reduce per-action compute time)
 
 ## GitHub webhook
 - URL: `https://<domain>/webhook`

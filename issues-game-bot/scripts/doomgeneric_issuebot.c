@@ -109,6 +109,14 @@ static void load_command_events(const char* command_file, int warmup_ticks, int 
         {
             this_hold = hold_ticks < 10 ? 10 : hold_ticks;
             this_step = ticks_per_command < 14 ? 14 : ticks_per_command;
+
+            // Emit a second pulse in the same command window for reliability.
+            push_event(tick, 1, key);
+            push_event(tick + this_hold, 0, key);
+            push_event(tick + this_hold + 2, 1, key);
+            push_event(tick + this_hold + 6, 0, key);
+            tick += this_step;
+            continue;
         }
 
         push_event(tick, 1, key);

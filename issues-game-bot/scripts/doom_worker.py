@@ -174,7 +174,7 @@ def run_doomgeneric(history: list[str], out_png: Path) -> None:
 
         command_file.write_text("\n".join(history) + "\n", encoding="utf-8")
 
-        ticks_per_cmd = os.getenv("DOOM_TICS_PER_COMMENT", "6")
+        ticks_per_cmd = os.getenv("DOOM_TICS_PER_COMMENT", "4")
         result = subprocess.run(
             [
                 str(bin_path),

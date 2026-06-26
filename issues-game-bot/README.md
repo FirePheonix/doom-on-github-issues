@@ -29,6 +29,7 @@ Turn-based Doom sessions driven by GitHub Issues/comments, rendered with a real 
 - `shoot`: alias for `fire`
 - `enter`: menu/select
 - `esc`: menu back
+- `exit` / `quit`: exit the game session without closing the GitHub issue
 - Add a repeat count for stronger input, for example `right 6` or `fire 5`
 - `restart`
 - `help`
@@ -62,7 +63,7 @@ Required vars:
 - Optional: `DOOM_BOOT_DELAY_MS=500` (lower values improve first-frame delivery speed)
 - Optional: `DOOM_MODE=demons|classic` (default `demons`; use `classic` to attempt IWAD startup path)
 - Optional: `DOOM_ENGINE=doomgeneric|vizdoom` (default `doomgeneric`, falls back to vizdoom if startup fails)
-- Optional: `DOOM_INACTIVITY_MS=300000` (passively pauses a session when the next command arrives after inactivity)
+- Optional: `DOOM_INACTIVITY_MS=300000` (exits the game session when the next command arrives after inactivity)
 - Optional render-performance controls:
   - `DOOM_FRAME_SCALE=0.8` (downscale output frame for faster transfer/render)
   - `DOOM_PNG_COMPRESS_LEVEL=3`
@@ -78,7 +79,7 @@ Required vars:
 ## Notes
 - This is still turn-based because GitHub comments are event-driven.
 - Renderer defaults to `doomgeneric` backend (full Doom code path with `doom1.wad`), with automatic `vizdoom` fallback if runtime/backend initialization fails.
-- Closing an issue freezes that session; reopening resumes it.
-- Inactive sessions (5+ minutes by default) are paused on the next command and require `restart` or issue reopen.
+- Closing a GitHub issue freezes that session as an issue-state action.
+- Inactive games exit after 5+ minutes by default; the GitHub issue remains open and `restart` starts a new run.
 - Sessions: `data/sessions/<issue>.json`
 - Frames: `data/frames/<issue>.png`

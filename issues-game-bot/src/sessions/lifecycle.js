@@ -70,9 +70,9 @@ export async function applyIssueCommentCommand({
   state.issueState = issueState || state.issueState || "open";
 
   if (command !== "restart" && isSessionInactive(state, inactivityMs) && state.status === "active") {
-    state.status = "inactive";
+    state.status = "exited";
     state.inactivityNotifiedAt = new Date().toISOString();
-    state.log = [`Session auto-paused after ${Math.floor(inactivityMs / 60000)} minutes of inactivity.`];
+    state.log = [`Game exited after ${Math.floor(inactivityMs / 60000)} minutes of inactivity.`];
     await saveSession(issueNumber, state);
     await postPauseNoticeOnce({
       github,
@@ -80,19 +80,19 @@ export async function applyIssueCommentCommand({
       repo,
       issueNumber,
       state,
-      body: `Session paused for inactivity (>${Math.floor(inactivityMs / 60000)} minutes). Comment \`restart\` to start a new run, or reopen and continue.`
+      body: `Game exited after inactivity (>${Math.floor(inactivityMs / 60000)} minutes). The GitHub issue stays open. Comment \`restart\` to start a new run.`
     });
     return;
   }
 
-  if ((state.status === "inactive" || state.status === "closed") && command !== "restart") {
+  if ((state.status === "inactive" || state.status === "exited" || state.status === "closed") && command !== "restart") {
     await postPauseNoticeOnce({
       github,
       owner,
       repo,
       issueNumber,
       state,
-      body: "Session is paused. Reopen the issue or comment `restart` to start a new run."
+      body: "Game is not running. Comment `restart` to start a new run."
     });
     return;
   }

@@ -10,7 +10,7 @@ export async function updateIssueLoadingView(octokit, owner, repo, issueNumber, 
       targetKills: "loading",
       status: "loading",
       renderer: "doomgeneric",
-      commands: "menu: w/s/a/d arrows, enter select, esc back | game: w/a/s/d + fire | repeat: right 6, fire 5"
+      commands: "menu: w/s/a/d arrows, enter select, esc back | game: w/a/s/d + fire | exit | restart"
     },
     imageUrl: "",
     logs: ["Booting Doom engine and preparing first frame..."]
@@ -18,4 +18,3 @@ export async function updateIssueLoadingView(octokit, owner, repo, issueNumber, 
 
   await updateIssueBody(octokit, owner, repo, issueNumber, mergeIssueBody(body, section));
 }
-

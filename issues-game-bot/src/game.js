@@ -14,6 +14,8 @@ const ALLOWED_COMMANDS = new Set([
   "enter",
   "esc",
   "escape",
+  "exit",
+  "quit",
   "help",
   "restart"
 ]);
@@ -86,7 +88,7 @@ export function stepSession(state, rawCommand) {
   }
 
   if (command === "help") {
-    state.log.unshift("Commands: w a s d fire enter restart help");
+    state.log.unshift("Commands: w a s d fire enter exit restart help");
     state.lastActivityAt = new Date().toISOString();
     state.log = state.log.slice(0, 8);
     return { state, acceptedCommand: command };
@@ -95,6 +97,14 @@ export function stepSession(state, rawCommand) {
   if (command === "restart") {
     restartInPlace(state);
     state.lastActivityAt = new Date().toISOString();
+    state.log = state.log.slice(0, 8);
+    return { state, acceptedCommand: command };
+  }
+
+  if (command === "exit" || command === "quit") {
+    state.status = "exited";
+    state.lastActivityAt = new Date().toISOString();
+    state.log.unshift("Game exited. Comment `restart` to start a new run.");
     state.log = state.log.slice(0, 8);
     return { state, acceptedCommand: command };
   }
@@ -118,7 +128,7 @@ export function summarizeState(state) {
     kills: "engine-managed",
     targetKills: "n/a",
     status: state.status,
-    commands: "menu: w/s/a/d arrows, enter select, esc back | game: w/a/s/d + fire | repeat: right 6, fire 5",
+    commands: "menu: w/s/a/d arrows, enter select, esc back | game: w/a/s/d + fire | exit | restart",
     renderer: "doomgeneric"
   };
 }

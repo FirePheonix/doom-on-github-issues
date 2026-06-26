@@ -53,6 +53,18 @@ export function normalizeCommand(input) {
   return ALLOWED_COMMANDS.has(normalized) ? normalized : null;
 }
 
+function getCommandRepeat(input, command) {
+  const parts = (input || "").trim().toLowerCase().split(/\s+/);
+  const requested = Number(parts[1]);
+  if (Number.isFinite(requested) && requested > 0) {
+    return Math.min(12, Math.floor(requested));
+  }
+
+  if (command === "a" || command === "d") return 4;
+  if (command === "fire") return 4;
+  return 1;
+}
+
 function restartInPlace(state) {
   const fresh = createSession(state.issueNumber);
   Object.assign(state, fresh);
@@ -86,11 +98,14 @@ export function stepSession(state, rawCommand) {
     return { state, acceptedCommand: command };
   }
 
-  state.history.push(command);
-  state.tick += 1;
+  const repeat = getCommandRepeat(rawCommand, command);
+  for (let i = 0; i < repeat; i += 1) {
+    state.history.push(command);
+  }
+  state.tick += repeat;
   state.lastActivityAt = new Date().toISOString();
   state.inactivityNotifiedAt = null;
-  state.log.unshift(`Applied command: ${command}`);
+  state.log.unshift(`Applied command: ${command}${repeat > 1 ? ` x${repeat}` : ""}`);
   state.log = state.log.slice(0, 8);
   return { state, acceptedCommand: command };
 }
@@ -102,7 +117,7 @@ export function summarizeState(state) {
     kills: "engine-managed",
     targetKills: "n/a",
     status: state.status,
-    commands: "menu: w/s/a/d arrows, enter select, esc back | game: w/a/s/d + fire",
+    commands: "menu: w/s/a/d arrows, enter select, esc back | game: w/a/s/d + fire | repeat: right 6, fire 5",
     renderer: "doomgeneric"
   };
 }

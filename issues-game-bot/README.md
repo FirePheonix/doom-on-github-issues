@@ -19,6 +19,7 @@ Turn-based Doom sessions driven by GitHub Issues/comments, rendered with a real 
 - `shoot`: alias for `fire`
 - `enter`: menu/select
 - `esc`: menu back
+- Add a repeat count for stronger input, for example `right 6` or `fire 5`
 - `restart`
 - `help`
 

@@ -115,7 +115,7 @@ async function updateIssueLoadingView(octokit, owner, repo, issueNumber, body) {
       targetKills: "loading",
       status: "loading",
       renderer: "doomgeneric",
-      commands: "menu: w/s/a/d arrows, enter select, esc back | game: w/a/s/d + fire"
+      commands: "menu: w/s/a/d arrows, enter select, esc back | game: w/a/s/d + fire | repeat: right 6, fire 5"
     },
     imageUrl: "",
     logs: ["Booting Doom engine and preparing first frame..."]

@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const dataDir = path.resolve(process.cwd(), "data");
@@ -42,14 +42,3 @@ export async function hasSession(issueNumber) {
   }
 }
 
-export async function listSessionIssueNumbers() {
-  try {
-    const files = await readdir(sessionsDir, { withFileTypes: true });
-    return files
-      .filter((f) => f.isFile() && f.name.endsWith(".json"))
-      .map((f) => Number(f.name.replace(/\.json$/, "")))
-      .filter((n) => Number.isFinite(n));
-  } catch {
-    return [];
-  }
-}

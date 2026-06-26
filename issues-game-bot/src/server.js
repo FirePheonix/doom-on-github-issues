@@ -3,7 +3,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { Octokit } from "@octokit/rest";
 import { createSession, normalizeCommand, stepSession, summarizeState } from "./game.js";
 import { formatIssueSection, mergeIssueBody } from "./issueBody.js";
-import { ensureDataDir, getFramePath, getSessionPath, hasSession, listSessionIssueNumbers, loadSession, saveSession } from "./storage.js";
+import { ensureDataDir, getFramePath, getSessionPath, hasSession, loadSession, saveSession } from "./storage.js";
 import { ensureEngineAssets, renderEngineFrame } from "./engine.js";
 
 function verifySignature(secret, rawBody, received) {
@@ -144,7 +144,6 @@ export function createServer() {
   const issueCooldownMs = 1200;
   const bootDelayMs = Number(process.env.DOOM_BOOT_DELAY_MS || "500");
   const inactivityMs = Number(process.env.DOOM_INACTIVITY_MS || "300000");
-  const inactivityScanMs = Number(process.env.DOOM_INACTIVITY_SCAN_MS || "60000");
   const issueLastProcessedAt = new Map();
   const issueJobStatus = new Map();
 
@@ -154,40 +153,6 @@ export function createServer() {
     if (now - last < issueCooldownMs) return true;
     issueLastProcessedAt.set(issueNumber, now);
     return false;
-  }
-
-  const ownerForSweeper = process.env.GITHUB_OWNER;
-  const repoForSweeper = process.env.GITHUB_REPO;
-  if (github && ownerForSweeper && repoForSweeper) {
-    setInterval(async () => {
-      try {
-        await ensureDataDir();
-        const issueNumbers = await listSessionIssueNumbers();
-        for (const issueNumber of issueNumbers) {
-          await lockStore.withIssueLock(issueNumber, async () => {
-            if (!(await hasSession(issueNumber))) return;
-            const state = await loadSession(issueNumber);
-            if (state.status !== "active") return;
-            if (!isSessionInactive(state, inactivityMs)) return;
-            if (state.inactivityNotifiedAt) return;
-
-            state.status = "inactive";
-            state.inactivityNotifiedAt = new Date().toISOString();
-            state.log = [`Session auto-paused after ${Math.floor(inactivityMs / 60000)} minutes of inactivity.`];
-            await saveSession(issueNumber, state);
-            await postIssueComment(
-              github,
-              ownerForSweeper,
-              repoForSweeper,
-              issueNumber,
-              `Session paused for inactivity (>${Math.floor(inactivityMs / 60000)} minutes). Comment \`restart\` to start a new run, or reopen and continue.`
-            );
-          });
-        }
-      } catch (error) {
-        console.error("Inactivity sweep failed:", error);
-      }
-    }, Math.max(15000, inactivityScanMs));
   }
 
   app.use(express.json({

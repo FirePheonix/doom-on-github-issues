@@ -2,3 +2,4 @@ __pycache__/
 *.pyc
 doompdf-ref/
 issues-game-bot/vendor/doomgeneric/
+image*.png

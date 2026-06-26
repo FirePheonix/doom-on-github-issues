@@ -45,6 +45,22 @@ def action_for(command: str) -> list[int]:
     return action
 
 
+def save_output_image(image: Image.Image, out_png: Path) -> None:
+    scale = float(os.getenv("DOOM_FRAME_SCALE", "0.8"))
+    scale = 1.0 if scale <= 0 else scale
+    if scale != 1.0:
+        w = max(1, int(image.width * scale))
+        h = max(1, int(image.height * scale))
+        image = image.resize((w, h), Image.Resampling.BILINEAR)
+
+    compress_level = int(os.getenv("DOOM_PNG_COMPRESS_LEVEL", "3"))
+    compress_level = 0 if compress_level < 0 else 9 if compress_level > 9 else compress_level
+    optimize = os.getenv("DOOM_PNG_OPTIMIZE", "false").lower() == "true"
+
+    out_png.parent.mkdir(parents=True, exist_ok=True)
+    image.save(out_png, format="PNG", compress_level=compress_level, optimize=optimize)
+
+
 def build_vizdoom_game(seed: int) -> DoomGame:
     assets_root = Path(__file__).resolve().parent / "assets"
     iwad_path = assets_root / "doom1.wad"
@@ -137,8 +153,7 @@ def run_vizdoom(history: list[str], seed: int, out_png: Path) -> None:
         frame = game.get_state().screen_buffer
 
     image = Image.fromarray(frame)
-    out_png.parent.mkdir(parents=True, exist_ok=True)
-    image.save(out_png)
+    save_output_image(image, out_png)
     game.close()
 
 
@@ -183,8 +198,7 @@ def run_doomgeneric(history: list[str], out_png: Path) -> None:
             raise RuntimeError("doomgeneric renderer did not produce output frame")
 
         image = Image.open(ppm_out)
-        out_png.parent.mkdir(parents=True, exist_ok=True)
-        image.save(out_png)
+        save_output_image(image, out_png)
 
 
 def main() -> int:

@@ -52,6 +52,10 @@ Required vars:
 - Optional: `DOOM_MODE=demons|classic` (default `demons`; use `classic` to attempt IWAD startup path)
 - Optional: `DOOM_ENGINE=doomgeneric|vizdoom` (default `doomgeneric`, falls back to vizdoom if startup fails)
 - Optional: `DOOM_INACTIVITY_MS=300000` and `DOOM_INACTIVITY_SCAN_MS=60000` (auto-pause inactive sessions and notify via issue comment)
+- Optional render-performance controls:
+  - `DOOM_FRAME_SCALE=0.8` (downscale output frame for faster transfer/render)
+  - `DOOM_PNG_COMPRESS_LEVEL=3`
+  - `DOOM_PNG_OPTIMIZE=false`
 
 ## GitHub webhook
 - URL: `https://<domain>/webhook`

@@ -53,7 +53,8 @@ static unsigned char map_command(const char* command)
     if (strcmp(command, "a") == 0) return KEY_LEFTARROW;
     if (strcmp(command, "d") == 0) return KEY_RIGHTARROW;
     if (strcmp(command, "fire") == 0) return KEY_FIRE;
-    if (strcmp(command, "enter") == 0) return KEY_USE;
+    if (strcmp(command, "enter") == 0) return KEY_ENTER;
+    if (strcmp(command, "esc") == 0) return KEY_ESCAPE;
     return 0;
 }
 
@@ -189,8 +190,8 @@ int main(int argc, char** argv)
     const char* command_file = NULL;
     const char* iwad_path = NULL;
     const char* output_path = NULL;
-    int ticks_per_command = 6;
-    int warmup_ticks = 100;
+    int ticks_per_command = 8;
+    int warmup_ticks = 50;
     int hold_ticks = 2;
 
     for (int i = 1; i < argc; ++i)
@@ -215,13 +216,11 @@ int main(int argc, char** argv)
     char* doom_argv[] = {
         "doomgeneric_issuebot",
         "-iwad", (char*)iwad_path,
-        "-warp", "1", "1",
-        "-skill", "2",
         "-nosound",
         NULL
     };
 
-    int doom_argc = 8;
+    int doom_argc = 4;
     doomgeneric_Create(doom_argc, doom_argv);
 
     int max_ticks = g_capture_tick + 600;

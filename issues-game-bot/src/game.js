@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-const ALLOWED_COMMANDS = new Set(["w", "a", "s", "d", "fire", "help", "restart"]);
+const ALLOWED_COMMANDS = new Set(["w", "a", "s", "d", "fire", "enter", "esc", "help", "restart"]);
 
 export function createSession(issueNumber) {
   const seed = Number.parseInt(
@@ -70,7 +70,7 @@ export function summarizeState(state) {
     kills: "engine-managed",
     targetKills: "n/a",
     status: state.status,
-    commands: "w=forward a=turn-left s=back d=turn-right fire=shoot",
-    renderer: "vizdoom"
+    commands: "menu: w/s/a/d arrows, enter select, esc back | game: w/a/s/d + fire",
+    renderer: "doomgeneric"
   };
 }

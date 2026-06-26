@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     make \
     gcc \
+    libc6-dev \
     libgl1 \
     libopenal1 \
     libx11-6 \

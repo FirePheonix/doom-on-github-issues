@@ -28,7 +28,10 @@ export function createSession(issueNumber) {
     issueNumber,
     seed,
     tick: 0,
-    status: "running",
+    status: "active",
+    issueState: "open",
+    lastActivityAt: new Date().toISOString(),
+    inactivityNotifiedAt: null,
     history: [],
     log: ["Session started. Real Doom engine frame pipeline enabled."]
   };
@@ -71,18 +74,22 @@ export function stepSession(state, rawCommand) {
 
   if (command === "help") {
     state.log.unshift("Commands: w a s d fire enter restart help");
+    state.lastActivityAt = new Date().toISOString();
     state.log = state.log.slice(0, 8);
     return { state, acceptedCommand: command };
   }
 
   if (command === "restart") {
     restartInPlace(state);
+    state.lastActivityAt = new Date().toISOString();
     state.log = state.log.slice(0, 8);
     return { state, acceptedCommand: command };
   }
 
   state.history.push(command);
   state.tick += 1;
+  state.lastActivityAt = new Date().toISOString();
+  state.inactivityNotifiedAt = null;
   state.log.unshift(`Applied command: ${command}`);
   state.log = state.log.slice(0, 8);
   return { state, acceptedCommand: command };

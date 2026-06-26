@@ -1,9 +1,9 @@
 import express from "express";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { Octokit } from "@octokit/rest";
-import { createSession, stepSession, summarizeState } from "./game.js";
+import { createSession, normalizeCommand, stepSession, summarizeState } from "./game.js";
 import { formatIssueSection, mergeIssueBody } from "./issueBody.js";
-import { ensureDataDir, getFramePath, getSessionPath, hasSession, loadSession, saveSession } from "./storage.js";
+import { ensureDataDir, getFramePath, getSessionPath, hasSession, listSessionIssueNumbers, loadSession, saveSession } from "./storage.js";
 import { ensureEngineAssets, renderEngineFrame } from "./engine.js";
 
 function verifySignature(secret, rawBody, received) {
@@ -72,6 +72,22 @@ function inferBaseUrl(req) {
   return `${proto}://${host}`;
 }
 
+function isSessionInactive(state, inactivityMs) {
+  if (!state?.lastActivityAt) return false;
+  const last = Date.parse(state.lastActivityAt);
+  if (!Number.isFinite(last)) return false;
+  return Date.now() - last >= inactivityMs;
+}
+
+async function postIssueComment(octokit, owner, repo, issueNumber, body) {
+  await octokit.rest.issues.createComment({
+    owner,
+    repo,
+    issue_number: issueNumber,
+    body
+  });
+}
+
 async function updateIssueView(octokit, owner, repo, issueNumber, body, req, state) {
   const baseUrl = inferBaseUrl(req);
   const frameUrl = `${baseUrl}/frames/${issueNumber}.png?t=${state.tick}`;
@@ -127,6 +143,8 @@ export function createServer() {
   const webhookSecret = process.env.GITHUB_WEBHOOK_SECRET || "";
   const issueCooldownMs = 1200;
   const bootDelayMs = Number(process.env.DOOM_BOOT_DELAY_MS || "2500");
+  const inactivityMs = Number(process.env.DOOM_INACTIVITY_MS || "300000");
+  const inactivityScanMs = Number(process.env.DOOM_INACTIVITY_SCAN_MS || "60000");
   const issueLastProcessedAt = new Map();
   const issueJobStatus = new Map();
 
@@ -136,6 +154,40 @@ export function createServer() {
     if (now - last < issueCooldownMs) return true;
     issueLastProcessedAt.set(issueNumber, now);
     return false;
+  }
+
+  const ownerForSweeper = process.env.GITHUB_OWNER;
+  const repoForSweeper = process.env.GITHUB_REPO;
+  if (github && ownerForSweeper && repoForSweeper) {
+    setInterval(async () => {
+      try {
+        await ensureDataDir();
+        const issueNumbers = await listSessionIssueNumbers();
+        for (const issueNumber of issueNumbers) {
+          await lockStore.withIssueLock(issueNumber, async () => {
+            if (!(await hasSession(issueNumber))) return;
+            const state = await loadSession(issueNumber);
+            if (state.status !== "active") return;
+            if (!isSessionInactive(state, inactivityMs)) return;
+            if (state.inactivityNotifiedAt) return;
+
+            state.status = "inactive";
+            state.inactivityNotifiedAt = new Date().toISOString();
+            state.log = [`Session auto-paused after ${Math.floor(inactivityMs / 60000)} minutes of inactivity.`];
+            await saveSession(issueNumber, state);
+            await postIssueComment(
+              github,
+              ownerForSweeper,
+              repoForSweeper,
+              issueNumber,
+              `Session paused for inactivity (>${Math.floor(inactivityMs / 60000)} minutes). Comment \`restart\` to start a new run, or reopen and continue.`
+            );
+          });
+        }
+      } catch (error) {
+        console.error("Inactivity sweep failed:", error);
+      }
+    }, Math.max(15000, inactivityScanMs));
   }
 
   app.use(express.json({
@@ -249,6 +301,62 @@ export function createServer() {
         return;
       }
 
+      if (event === "issues" && payload?.action === "closed") {
+        const issueNumber = getIssueNumber(payload);
+        if (!issueNumber) {
+          res.status(200).json({ ok: true, ignored: "missing_issue_number" });
+          return;
+        }
+
+        schedule(issueNumber, async () => {
+          await lockStore.withIssueLock(issueNumber, async () => {
+            await ensureDataDir();
+            if (!(await hasSession(issueNumber))) return;
+            const state = await loadSession(issueNumber);
+            state.issueState = "closed";
+            state.status = "closed";
+            state.log = ["Issue closed. Session frozen. Reopen issue or comment `restart` to start fresh."];
+            await saveSession(issueNumber, state);
+            await postIssueComment(
+              github,
+              owner,
+              repo,
+              issueNumber,
+              "Issue closed: session frozen. Reopen this issue to resume, or comment `restart` to start a new run."
+            );
+          });
+        });
+
+        res.status(202).json({ ok: true, accepted: "issues.closed", issueNumber });
+        return;
+      }
+
+      if (event === "issues" && payload?.action === "reopened") {
+        const issueNumber = getIssueNumber(payload);
+        if (!issueNumber) {
+          res.status(200).json({ ok: true, ignored: "missing_issue_number" });
+          return;
+        }
+
+        schedule(issueNumber, async () => {
+          await lockStore.withIssueLock(issueNumber, async () => {
+            await ensureDataDir();
+            if (!(await hasSession(issueNumber))) return;
+            const state = await loadSession(issueNumber);
+            state.issueState = "open";
+            if (state.status === "closed") {
+              state.status = "active";
+              state.log.unshift("Issue reopened. Session resumed.");
+            }
+            await saveSession(issueNumber, state);
+            await postIssueComment(github, owner, repo, issueNumber, "Issue reopened: session resumed.");
+          });
+        });
+
+        res.status(202).json({ ok: true, accepted: "issues.reopened", issueNumber });
+        return;
+      }
+
       if (event === "issue_comment" && payload?.action === "created") {
         const issueNumber = getIssueNumber(payload);
         if (!issueNumber) {
@@ -280,6 +388,46 @@ export function createServer() {
               state = await loadSession(issueNumber);
             } else {
               state = createSession(issueNumber);
+            }
+
+            const command = normalizeCommand(commentBody);
+            const issueState = payload.issue?.state || state.issueState || "open";
+            state.issueState = issueState;
+
+            if (isSessionInactive(state, inactivityMs) && state.status === "active") {
+              state.status = "inactive";
+              state.inactivityNotifiedAt = new Date().toISOString();
+              state.log = [`Session auto-paused after ${Math.floor(inactivityMs / 60000)} minutes of inactivity.`];
+              await saveSession(issueNumber, state);
+              await postIssueComment(
+                github,
+                owner,
+                repo,
+                issueNumber,
+                `Session paused for inactivity (>${Math.floor(inactivityMs / 60000)} minutes). Comment \`restart\` to start a new run, or reopen and continue.`
+              );
+            }
+
+            if ((state.status === "inactive" || state.status === "closed") && command !== "restart") {
+              await postIssueComment(
+                github,
+                owner,
+                repo,
+                issueNumber,
+                "Session is paused. Reopen the issue or comment `restart` to start a new run."
+              );
+              return;
+            }
+
+            if (state.issueState === "closed" && command !== "restart") {
+              await postIssueComment(
+                github,
+                owner,
+                repo,
+                issueNumber,
+                "Issue is closed. Reopen issue or comment `restart` to continue."
+              );
+              return;
             }
 
             stepSession(state, commentBody);

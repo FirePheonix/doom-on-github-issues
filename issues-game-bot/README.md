@@ -51,6 +51,7 @@ Required vars:
 - Optional: `DOOM_BOOT_DELAY_MS=4500` (forces a visible loading screen before first frame render)
 - Optional: `DOOM_MODE=demons|classic` (default `demons`; use `classic` to attempt IWAD startup path)
 - Optional: `DOOM_ENGINE=doomgeneric|vizdoom` (default `doomgeneric`, falls back to vizdoom if startup fails)
+- Optional: `DOOM_INACTIVITY_MS=300000` and `DOOM_INACTIVITY_SCAN_MS=60000` (auto-pause inactive sessions and notify via issue comment)
 
 ## GitHub webhook
 - URL: `https://<domain>/webhook`
@@ -61,5 +62,7 @@ Required vars:
 ## Notes
 - This is still turn-based because GitHub comments are event-driven.
 - Renderer defaults to `doomgeneric` backend (full Doom code path with `doom1.wad`), with automatic `vizdoom` fallback if runtime/backend initialization fails.
+- Closing an issue freezes that session; reopening resumes it.
+- Inactive sessions (5+ minutes by default) are auto-paused and require `restart` or issue reopen.
 - Sessions: `data/sessions/<issue>.json`
 - Frames: `data/frames/<issue>.png`

@@ -44,7 +44,7 @@ Required vars:
 - `GITHUB_WEBHOOK_SECRET`
 - `PUBLIC_BASE_URL=https://<your-railway-domain>`
 - Optional: `PYTHON_BIN=python3`, `DOOM_TICS_PER_COMMENT=5`
-- Optional: `DOOM_BOOT_DELAY_MS=2500` (forces a visible loading screen before first frame render)
+- Optional: `DOOM_BOOT_DELAY_MS=4500` (forces a visible loading screen before first frame render)
 - Optional: `DOOM_MODE=demons|classic` (default `demons`; use `classic` to attempt IWAD startup path)
 - Optional: `DOOM_ENGINE=doomgeneric|vizdoom` (default `doomgeneric`, falls back to vizdoom if startup fails)
 

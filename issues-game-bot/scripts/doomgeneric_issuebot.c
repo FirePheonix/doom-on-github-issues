@@ -87,9 +87,19 @@ static void load_command_events(const char* command_file, int warmup_ticks, int 
         unsigned char key = map_command(line);
         if (key == 0) continue;
 
+        int this_hold = hold_ticks;
+        int this_step = ticks_per_command;
+
+        // Fire key needs a longer pulse so Doom reliably consumes it.
+        if (key == KEY_FIRE)
+        {
+            this_hold = hold_ticks < 8 ? 8 : hold_ticks;
+            this_step = ticks_per_command < 12 ? 12 : ticks_per_command;
+        }
+
         push_event(tick, 1, key);
-        push_event(tick + hold_ticks, 0, key);
-        tick += ticks_per_command;
+        push_event(tick + this_hold, 0, key);
+        tick += this_step;
     }
 
     fclose(fp);

@@ -69,39 +69,43 @@ export async function applyIssueCommentCommand({
   const command = normalizeCommand(commentBody);
   state.issueState = issueState || state.issueState || "open";
 
-  if (isSessionInactive(state, inactivityMs) && state.status === "active") {
+  if (command !== "restart" && isSessionInactive(state, inactivityMs) && state.status === "active") {
     state.status = "inactive";
     state.inactivityNotifiedAt = new Date().toISOString();
     state.log = [`Session auto-paused after ${Math.floor(inactivityMs / 60000)} minutes of inactivity.`];
     await saveSession(issueNumber, state);
-    await postIssueComment(
+    await postPauseNoticeOnce({
       github,
       owner,
       repo,
       issueNumber,
-      `Session paused for inactivity (>${Math.floor(inactivityMs / 60000)} minutes). Comment \`restart\` to start a new run, or reopen and continue.`
-    );
+      state,
+      body: `Session paused for inactivity (>${Math.floor(inactivityMs / 60000)} minutes). Comment \`restart\` to start a new run, or reopen and continue.`
+    });
+    return;
   }
 
   if ((state.status === "inactive" || state.status === "closed") && command !== "restart") {
-    await postIssueComment(
+    await postPauseNoticeOnce({
       github,
       owner,
       repo,
       issueNumber,
-      "Session is paused. Reopen the issue or comment `restart` to start a new run."
-    );
+      state,
+      body: "Session is paused. Reopen the issue or comment `restart` to start a new run."
+    });
     return;
   }
 
   if (state.issueState === "closed" && command !== "restart") {
-    await postIssueComment(
+    await postPauseNoticeOnce({
       github,
       owner,
       repo,
       issueNumber,
-      "Issue is closed. Reopen issue or comment `restart` to continue."
-    );
+      state,
+      body: "Issue is closed. Reopen issue or comment `restart` to continue."
+    });
     return;
   }
 
@@ -110,3 +114,12 @@ export async function applyIssueCommentCommand({
   await updateIssueGameView(github, owner, repo, issueNumber, originalBody, req, state);
 }
 
+async function postPauseNoticeOnce({ github, owner, repo, issueNumber, state, body }) {
+  if (state.pauseNoticeNotifiedAt) {
+    return;
+  }
+
+  state.pauseNoticeNotifiedAt = new Date().toISOString();
+  await saveSession(issueNumber, state);
+  await postIssueComment(github, owner, repo, issueNumber, body);
+}

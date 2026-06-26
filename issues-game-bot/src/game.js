@@ -32,6 +32,7 @@ export function createSession(issueNumber) {
     issueState: "open",
     lastActivityAt: new Date().toISOString(),
     inactivityNotifiedAt: null,
+    pauseNoticeNotifiedAt: null,
     history: [],
     log: ["Session started. Real Doom engine frame pipeline enabled."]
   };

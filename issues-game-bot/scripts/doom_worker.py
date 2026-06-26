@@ -61,38 +61,6 @@ def save_output_image(image: Image.Image, out_png: Path) -> None:
     image.save(out_png, format="PNG", compress_level=compress_level, optimize=optimize)
 
 
-def save_output_gif(frames: list[Image.Image], out_gif: Path) -> None:
-    if not frames:
-        raise RuntimeError("No frames available for GIF output")
-
-    scale = float(os.getenv("DOOM_FRAME_SCALE", "0.8"))
-    scale = 1.0 if scale <= 0 else scale
-    if scale != 1.0:
-        resized: list[Image.Image] = []
-        for frame in frames:
-            w = max(1, int(frame.width * scale))
-            h = max(1, int(frame.height * scale))
-            resized.append(frame.resize((w, h), Image.Resampling.BILINEAR))
-        frames = resized
-
-    fps = int(os.getenv("DOOM_GIF_FPS", "12"))
-    fps = 1 if fps < 1 else fps
-    duration = int(1000 / fps)
-
-    out_gif.parent.mkdir(parents=True, exist_ok=True)
-    first, *rest = frames
-    first.save(
-        out_gif,
-        format="GIF",
-        save_all=True,
-        append_images=rest,
-        duration=duration,
-        loop=0,
-        optimize=True,
-        disposal=2,
-    )
-
-
 def build_vizdoom_game(seed: int) -> DoomGame:
     assets_root = Path(__file__).resolve().parent / "assets"
     iwad_path = assets_root / "doom1.wad"
@@ -169,7 +137,7 @@ def build_vizdoom_game(seed: int) -> DoomGame:
     return game
 
 
-def run_vizdoom(history: list[str], seed: int, out_path: Path, frame_mode: str) -> None:
+def run_vizdoom(history: list[str], seed: int, out_png: Path) -> None:
     game = build_vizdoom_game(seed)
     max_steps = int(os.getenv("DOOM_TICS_PER_COMMENT", "5"))
 
@@ -185,22 +153,11 @@ def run_vizdoom(history: list[str], seed: int, out_path: Path, frame_mode: str) 
         frame = game.get_state().screen_buffer
 
     image = Image.fromarray(frame)
-    if frame_mode == "gif":
-        gif_frames = int(os.getenv("DOOM_GIF_FRAMES", "10"))
-        gif_frames = 2 if gif_frames < 2 else gif_frames
-        blank_action = [0, 0, 0, 0, 0, 0]
-        frames: list[Image.Image] = [image.copy()]
-        for _ in range(gif_frames - 1):
-            game.make_action(blank_action, 1)
-            current = game.get_state().screen_buffer if game.get_state() else frame
-            frames.append(Image.fromarray(current))
-        save_output_gif(frames, out_path)
-    else:
-        save_output_image(image, out_path)
+    save_output_image(image, out_png)
     game.close()
 
 
-def run_doomgeneric(history: list[str], out_path: Path, frame_mode: str) -> None:
+def run_doomgeneric(history: list[str], out_png: Path) -> None:
     assets_root = Path(__file__).resolve().parent / "assets"
     iwad_path = assets_root / "doom1.wad"
     bin_path = assets_root / "doomgeneric_issuebot"
@@ -218,32 +175,14 @@ def run_doomgeneric(history: list[str], out_path: Path, frame_mode: str) -> None
         command_file.write_text("\n".join(history) + "\n", encoding="utf-8")
 
         ticks_per_cmd = os.getenv("DOOM_TICS_PER_COMMENT", "6")
-        if frame_mode == "gif":
-            gif_frames = int(os.getenv("DOOM_GIF_FRAMES", "10"))
-            gif_frames = 2 if gif_frames < 2 else gif_frames
-            gif_stride = int(os.getenv("DOOM_GIF_STRIDE", "2"))
-            gif_stride = 1 if gif_stride < 1 else gif_stride
-            frame_prefix = tmp / "frame"
-            cmd = [
-                str(bin_path),
-                "--commands", str(command_file),
-                "--iwad", str(iwad_path),
-                "--out-prefix", str(frame_prefix),
-                "--capture-frames", str(gif_frames),
-                "--capture-stride", str(gif_stride),
-                "--ticks-per-cmd", ticks_per_cmd,
-            ]
-        else:
-            cmd = [
+        result = subprocess.run(
+            [
                 str(bin_path),
                 "--commands", str(command_file),
                 "--iwad", str(iwad_path),
                 "--out", str(ppm_out),
                 "--ticks-per-cmd", ticks_per_cmd,
-            ]
-
-        result = subprocess.run(
-            cmd,
+            ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -255,17 +194,11 @@ def run_doomgeneric(history: list[str], out_path: Path, frame_mode: str) -> None
                 f"doomgeneric renderer failed ({result.returncode}): {result.stderr or result.stdout}"
             )
 
-        if frame_mode == "gif":
-            frame_files = sorted(tmp.glob("frame_*.ppm"))
-            if not frame_files:
-                raise RuntimeError("doomgeneric GIF renderer did not produce output frames")
-            frames = [Image.open(p).copy() for p in frame_files]
-            save_output_gif(frames, out_path)
-        else:
-            if not ppm_out.exists():
-                raise RuntimeError("doomgeneric renderer did not produce output frame")
-            image = Image.open(ppm_out)
-            save_output_image(image, out_path)
+        if not ppm_out.exists():
+            raise RuntimeError("doomgeneric renderer did not produce output frame")
+
+        image = Image.open(ppm_out)
+        save_output_image(image, out_png)
 
 
 def main() -> int:
@@ -274,24 +207,22 @@ def main() -> int:
         return 2
 
     session_json = Path(sys.argv[1])
-    out_path = Path(sys.argv[2])
+    out_png = Path(sys.argv[2])
 
     state = json.loads(session_json.read_text(encoding="utf-8"))
     history = state.get("history", [])
     seed = int(state.get("seed", 1337))
     backend = os.getenv("DOOM_ENGINE", "doomgeneric").strip().lower()
-    frame_mode = os.getenv("DOOM_FRAME_MODE", "png").strip().lower()
-    frame_mode = "gif" if frame_mode == "gif" else "png"
 
     try:
         if backend == "doomgeneric":
-            run_doomgeneric(history, out_path, frame_mode)
+            run_doomgeneric(history, out_png)
         else:
-            run_vizdoom(history, seed, out_path, frame_mode)
+            run_vizdoom(history, seed, out_png)
     except Exception as exc:
         print(f"primary_backend_failed={backend}: {exc}", file=sys.stderr)
         if backend != "vizdoom":
-            run_vizdoom(history, seed, out_path, frame_mode)
+            run_vizdoom(history, seed, out_png)
         else:
             raise
 

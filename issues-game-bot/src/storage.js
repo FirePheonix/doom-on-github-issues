@@ -5,17 +5,12 @@ const dataDir = path.resolve(process.cwd(), "data");
 const sessionsDir = path.join(dataDir, "sessions");
 const framesDir = path.join(dataDir, "frames");
 
-export function getFrameExt() {
-  const mode = (process.env.DOOM_FRAME_MODE || "png").toLowerCase();
-  return mode === "gif" ? "gif" : "png";
-}
-
 export function getSessionPath(issueNumber) {
   return path.join(sessionsDir, `${issueNumber}.json`);
 }
 
 export function getFramePath(issueNumber) {
-  return path.join(framesDir, `${issueNumber}.${getFrameExt()}`);
+  return path.join(framesDir, `${issueNumber}.png`);
 }
 
 export async function ensureDataDir() {

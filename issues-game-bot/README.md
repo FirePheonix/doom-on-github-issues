@@ -14,7 +14,9 @@ Turn-based Doom sessions driven by GitHub Issues/comments, rendered with a real 
 - `s`: move backward
 - `a`: turn left
 - `d`: turn right
+- `left/right/up/down`: aliases for `a/d/w/s`
 - `fire`: attack
+- `shoot`: alias for `fire`
 - `enter`: menu/select
 - `esc`: menu back
 - `restart`

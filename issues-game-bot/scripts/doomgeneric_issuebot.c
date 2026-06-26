@@ -49,12 +49,18 @@ static void push_event(int tick, int pressed, unsigned char key)
 static unsigned char map_command(const char* command)
 {
     if (strcmp(command, "w") == 0) return KEY_UPARROW;
+    if (strcmp(command, "up") == 0) return KEY_UPARROW;
     if (strcmp(command, "s") == 0) return KEY_DOWNARROW;
+    if (strcmp(command, "down") == 0) return KEY_DOWNARROW;
     if (strcmp(command, "a") == 0) return KEY_LEFTARROW;
+    if (strcmp(command, "left") == 0) return KEY_LEFTARROW;
     if (strcmp(command, "d") == 0) return KEY_RIGHTARROW;
+    if (strcmp(command, "right") == 0) return KEY_RIGHTARROW;
     if (strcmp(command, "fire") == 0) return KEY_FIRE;
+    if (strcmp(command, "shoot") == 0) return KEY_FIRE;
     if (strcmp(command, "enter") == 0) return KEY_ENTER;
     if (strcmp(command, "esc") == 0) return KEY_ESCAPE;
+    if (strcmp(command, "escape") == 0) return KEY_ESCAPE;
     return 0;
 }
 
@@ -91,11 +97,18 @@ static void load_command_events(const char* command_file, int warmup_ticks, int 
         int this_hold = hold_ticks;
         int this_step = ticks_per_command;
 
+        // Movement/turn keys need noticeable hold to produce visible motion.
+        if (key == KEY_UPARROW || key == KEY_DOWNARROW || key == KEY_LEFTARROW || key == KEY_RIGHTARROW)
+        {
+            this_hold = hold_ticks < 5 ? 5 : hold_ticks;
+            this_step = ticks_per_command < 10 ? 10 : ticks_per_command;
+        }
+
         // Fire key needs a longer pulse so Doom reliably consumes it.
         if (key == KEY_FIRE)
         {
-            this_hold = hold_ticks < 8 ? 8 : hold_ticks;
-            this_step = ticks_per_command < 12 ? 12 : ticks_per_command;
+            this_hold = hold_ticks < 10 ? 10 : hold_ticks;
+            this_step = ticks_per_command < 14 ? 14 : ticks_per_command;
         }
 
         push_event(tick, 1, key);

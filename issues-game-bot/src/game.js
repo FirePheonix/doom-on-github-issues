@@ -1,6 +1,22 @@
 import { createHash } from "node:crypto";
 
-const ALLOWED_COMMANDS = new Set(["w", "a", "s", "d", "fire", "enter", "esc", "help", "restart"]);
+const ALLOWED_COMMANDS = new Set([
+  "w",
+  "a",
+  "s",
+  "d",
+  "up",
+  "down",
+  "left",
+  "right",
+  "fire",
+  "shoot",
+  "enter",
+  "esc",
+  "escape",
+  "help",
+  "restart"
+]);
 
 export function createSession(issueNumber) {
   const seed = Number.parseInt(
@@ -21,8 +37,17 @@ export function createSession(issueNumber) {
 export function normalizeCommand(input) {
   if (!input) return null;
   const token = input.trim().toLowerCase().split(/\s+/)[0];
-  if (token === "space") return "fire";
-  return ALLOWED_COMMANDS.has(token) ? token : null;
+  const aliases = {
+    up: "w",
+    down: "s",
+    left: "a",
+    right: "d",
+    shoot: "fire",
+    space: "fire",
+    escape: "esc"
+  };
+  const normalized = aliases[token] || token;
+  return ALLOWED_COMMANDS.has(normalized) ? normalized : null;
 }
 
 function restartInPlace(state) {

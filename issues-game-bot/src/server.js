@@ -3,7 +3,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { Octokit } from "@octokit/rest";
 import { createSession, normalizeCommand, stepSession, summarizeState } from "./game.js";
 import { formatIssueSection, mergeIssueBody } from "./issueBody.js";
-import { ensureDataDir, getFramePath, getSessionPath, hasSession, listSessionIssueNumbers, loadSession, saveSession } from "./storage.js";
+import { ensureDataDir, getFrameExt, getFramePath, getSessionPath, hasSession, listSessionIssueNumbers, loadSession, saveSession } from "./storage.js";
 import { ensureEngineAssets, renderEngineFrame } from "./engine.js";
 
 function verifySignature(secret, rawBody, received) {
@@ -90,7 +90,8 @@ async function postIssueComment(octokit, owner, repo, issueNumber, body) {
 
 async function updateIssueView(octokit, owner, repo, issueNumber, body, req, state) {
   const baseUrl = inferBaseUrl(req);
-  const frameUrl = `${baseUrl}/frames/${issueNumber}.png?t=${state.tick}`;
+  const frameExt = getFrameExt();
+  const frameUrl = `${baseUrl}/frames/${issueNumber}.${frameExt}?t=${state.tick}`;
   const section = formatIssueSection({
     stateSummary: summarizeState(state),
     imageUrl: frameUrl,
@@ -212,10 +213,15 @@ export function createServer() {
     res.json({ ok: true, issueNumber, status });
   });
 
-  app.get("/frames/:issueNumber.png", async (req, res) => {
+  app.get("/frames/:issueNumber.:ext", async (req, res) => {
     try {
       await ensureDataDir();
       const issueNumber = Number(req.params.issueNumber);
+      const ext = String(req.params.ext || "").toLowerCase();
+      if (ext !== getFrameExt()) {
+        res.status(404).json({ ok: false, error: "frame_not_found" });
+        return;
+      }
       if (!Number.isFinite(issueNumber)) {
         res.status(400).json({ ok: false, error: "invalid_issue_number" });
         return;

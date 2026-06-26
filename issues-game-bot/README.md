@@ -56,6 +56,10 @@ Required vars:
   - `DOOM_FRAME_SCALE=0.8` (downscale output frame for faster transfer/render)
   - `DOOM_PNG_COMPRESS_LEVEL=3`
   - `DOOM_PNG_OPTIMIZE=false`
+  - `DOOM_FRAME_MODE=png|gif` (default `png`)
+  - `DOOM_GIF_FRAMES=10`
+  - `DOOM_GIF_FPS=12`
+  - `DOOM_GIF_STRIDE=2`
 
 ## GitHub webhook
 - URL: `https://<domain>/webhook`

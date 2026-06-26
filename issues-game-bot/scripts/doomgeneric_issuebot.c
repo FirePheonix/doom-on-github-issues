@@ -24,6 +24,10 @@ static int g_current_tick = 0;
 static int g_capture_tick = 120;
 static int g_done = 0;
 static const char* g_output_ppm = NULL;
+static const char* g_output_prefix = NULL;
+static int g_capture_frames = 1;
+static int g_capture_stride = 2;
+static int g_captured = 0;
 
 static void push_event(int tick, int pressed, unsigned char key)
 {
@@ -147,6 +151,13 @@ static void write_ppm(const char* path)
     fclose(fp);
 }
 
+static void write_ppm_indexed(const char* prefix, int index)
+{
+    char path[1024];
+    snprintf(path, sizeof(path), "%s_%03d.ppm", prefix, index);
+    write_ppm(path);
+}
+
 void DG_Init()
 {
 }
@@ -157,8 +168,24 @@ void DG_DrawFrame()
 
     if (!g_done && g_current_tick >= g_capture_tick)
     {
-        write_ppm(g_output_ppm);
-        g_done = 1;
+        if (g_output_prefix)
+        {
+            int elapsed = g_current_tick - g_capture_tick;
+            if (elapsed % g_capture_stride == 0)
+            {
+                write_ppm_indexed(g_output_prefix, g_captured);
+                g_captured++;
+                if (g_captured >= g_capture_frames)
+                {
+                    g_done = 1;
+                }
+            }
+        }
+        else
+        {
+            write_ppm(g_output_ppm);
+            g_done = 1;
+        }
     }
 }
 
@@ -217,9 +244,16 @@ int main(int argc, char** argv)
         else if (strcmp(argv[i], "--hold-ticks") == 0 && i + 1 < argc) hold_ticks = atoi(argv[++i]);
     }
 
-    if (!command_file || !iwad_path || !output_path)
+    for (int i = 1; i < argc; ++i)
     {
-        fprintf(stderr, "usage: doomgeneric_issuebot --commands <file> --iwad <path> --out <ppm> [--ticks-per-cmd N]\n");
+        if (strcmp(argv[i], "--out-prefix") == 0 && i + 1 < argc) g_output_prefix = argv[++i];
+        else if (strcmp(argv[i], "--capture-frames") == 0 && i + 1 < argc) g_capture_frames = atoi(argv[++i]);
+        else if (strcmp(argv[i], "--capture-stride") == 0 && i + 1 < argc) g_capture_stride = atoi(argv[++i]);
+    }
+
+    if (!command_file || !iwad_path || (!output_path && !g_output_prefix))
+    {
+        fprintf(stderr, "usage: doomgeneric_issuebot --commands <file> --iwad <path> (--out <ppm>|--out-prefix <prefix>) [--ticks-per-cmd N]\n");
         return 2;
     }
 
@@ -236,7 +270,7 @@ int main(int argc, char** argv)
     int doom_argc = 4;
     doomgeneric_Create(doom_argc, doom_argv);
 
-    int max_ticks = g_capture_tick + 600;
+    int max_ticks = g_capture_tick + (g_capture_frames * g_capture_stride) + 600;
     while (!g_done && g_current_tick < max_ticks)
     {
         doomgeneric_Tick();
@@ -244,7 +278,18 @@ int main(int argc, char** argv)
 
     if (!g_done)
     {
-        write_ppm(g_output_ppm);
+        if (g_output_prefix)
+        {
+            while (g_captured < g_capture_frames)
+            {
+                write_ppm_indexed(g_output_prefix, g_captured);
+                g_captured++;
+            }
+        }
+        else
+        {
+            write_ppm(g_output_ppm);
+        }
     }
 
     free(g_events);

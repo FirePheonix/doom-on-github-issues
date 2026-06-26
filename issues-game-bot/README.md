@@ -6,8 +6,18 @@ Turn-based Doom sessions driven by GitHub Issues/comments, rendered with a real 
 - New issue opens a new session (`issue_number` == session ID).
 - Every new comment is one input action.
 - Node webhook handler stores session state/history.
-- Python worker (`scripts/doom_worker.py`) replays history in ViZDoom (E1M1 start) and writes a PNG frame.
+- Python worker (`scripts/doom_worker.py`) replays history through the selected backend (`doomgeneric` by default, ViZDoom fallback) and writes a PNG frame.
 - Issue body embeds `/frames/<issue>.png` so each action updates graphics.
+
+## Code layout
+- `src/server.js`: app composition and dependency wiring only.
+- `src/routes/`: HTTP endpoints (`/webhook`, `/frames`, `/health`, `/debug`).
+- `src/github/`: GitHub client, webhook validation, issue update/comment helpers.
+- `src/jobs/`: async webhook job queue, per-issue locks, debug status.
+- `src/sessions/`: command normalization, lifecycle, inactivity, persistence artifacts.
+- `src/views/`: GitHub issue markdown rendering for loading/game screens.
+- `src/renderer/`: frame URL/render-adapter helpers.
+- `scripts/`: Python/C Doom renderer pipeline.
 
 ## Commands
 - `w`: move forward

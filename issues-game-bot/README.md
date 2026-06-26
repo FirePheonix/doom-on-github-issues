@@ -46,6 +46,7 @@ Required vars:
 - Optional: `PYTHON_BIN=python3`, `DOOM_TICS_PER_COMMENT=5`
 - Optional: `DOOM_BOOT_DELAY_MS=2500` (forces a visible loading screen before first frame render)
 - Optional: `DOOM_MODE=demons|classic` (default `demons`; use `classic` to attempt IWAD startup path)
+- Optional: `DOOM_ENGINE=doomgeneric|vizdoom` (default `doomgeneric`, falls back to vizdoom if startup fails)
 
 ## GitHub webhook
 - URL: `https://<domain>/webhook`
@@ -55,6 +56,6 @@ Required vars:
 
 ## Notes
 - This is still turn-based because GitHub comments are event-driven.
-- Renderer defaults to a demon combat scenario (`defend_the_center`) for reliable enemy gameplay in Issues mode.
+- Renderer defaults to `doomgeneric` backend (full Doom code path with `doom1.wad`), with automatic `vizdoom` fallback if runtime/backend initialization fails.
 - Sessions: `data/sessions/<issue>.json`
 - Frames: `data/frames/<issue>.png`

@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 import json
 import os
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 from PIL import Image
 from vizdoom import (
     Button,
     DoomGame,
-    Mode,
     GameVariable,
+    Mode,
     ScreenFormat,
     ScreenResolution,
 )
@@ -43,7 +45,7 @@ def action_for(command: str) -> list[int]:
     return action
 
 
-def build_game(seed: int) -> DoomGame:
+def build_vizdoom_game(seed: int) -> DoomGame:
     assets_root = Path(__file__).resolve().parent / "assets"
     iwad_path = assets_root / "doom1.wad"
     demon_cfg = assets_root / "defend_the_center.cfg"
@@ -57,11 +59,8 @@ def build_game(seed: int) -> DoomGame:
         and not (demon_cfg.exists() and demon_wad.exists())
         and not (basic_cfg.exists() and basic_wad.exists())
     ):
-        raise RuntimeError(
-            "Missing assets. Run scripts/fetch_doom_assets.py first."
-        )
+        raise RuntimeError("Missing assets. Run scripts/fetch_doom_assets.py first.")
 
-    # Default path: demon combat scenario.
     if mode in {"demons", "scenario"} and demon_cfg.exists() and demon_wad.exists():
         game = DoomGame()
         game.load_config(str(demon_cfg))
@@ -80,7 +79,6 @@ def build_game(seed: int) -> DoomGame:
         game.new_episode()
         return game
 
-    # Try classic shareware IWAD mode first.
     if mode == "classic" and iwad_path.exists():
         try:
             game = DoomGame()
@@ -103,7 +101,6 @@ def build_game(seed: int) -> DoomGame:
         except Exception as exc:
             print(f"classic_iwad_init_failed={exc}", file=sys.stderr)
 
-    # Fallback to known-good ViZDoom basic scenario.
     game = DoomGame()
     if not basic_cfg.exists() or not basic_wad.exists():
         raise RuntimeError("Fallback scenario assets missing (basic.wad/basic.cfg)")
@@ -124,21 +121,10 @@ def build_game(seed: int) -> DoomGame:
     return game
 
 
-def main() -> int:
-    if len(sys.argv) != 3:
-        print("Usage: doom_worker.py <session_json> <output_png>", file=sys.stderr)
-        return 2
-
-    session_json = Path(sys.argv[1])
-    out_png = Path(sys.argv[2])
-
-    state = json.loads(session_json.read_text(encoding="utf-8"))
-    history = state.get("history", [])
-    seed = int(state.get("seed", 1337))
-
-    game = build_game(seed)
-
+def run_vizdoom(history: list[str], seed: int, out_png: Path) -> None:
+    game = build_vizdoom_game(seed)
     max_steps = int(os.getenv("DOOM_TICS_PER_COMMENT", "5"))
+
     for cmd in history:
         action = action_for(cmd)
         game.make_action(action, max_steps)
@@ -154,6 +140,78 @@ def main() -> int:
     out_png.parent.mkdir(parents=True, exist_ok=True)
     image.save(out_png)
     game.close()
+
+
+def run_doomgeneric(history: list[str], out_png: Path) -> None:
+    assets_root = Path(__file__).resolve().parent / "assets"
+    iwad_path = assets_root / "doom1.wad"
+    bin_path = assets_root / "doomgeneric_issuebot"
+
+    if not iwad_path.exists():
+        raise RuntimeError("doomgeneric mode requires scripts/assets/doom1.wad")
+    if not bin_path.exists():
+        raise RuntimeError("doomgeneric binary not found at scripts/assets/doomgeneric_issuebot")
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp = Path(tmp_dir)
+        command_file = tmp / "commands.txt"
+        ppm_out = tmp / "frame.ppm"
+
+        command_file.write_text("\n".join(history) + "\n", encoding="utf-8")
+
+        ticks_per_cmd = os.getenv("DOOM_TICS_PER_COMMENT", "6")
+        result = subprocess.run(
+            [
+                str(bin_path),
+                "--commands", str(command_file),
+                "--iwad", str(iwad_path),
+                "--out", str(ppm_out),
+                "--ticks-per-cmd", ticks_per_cmd,
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"doomgeneric renderer failed ({result.returncode}): {result.stderr or result.stdout}"
+            )
+
+        if not ppm_out.exists():
+            raise RuntimeError("doomgeneric renderer did not produce output frame")
+
+        image = Image.open(ppm_out)
+        out_png.parent.mkdir(parents=True, exist_ok=True)
+        image.save(out_png)
+
+
+def main() -> int:
+    if len(sys.argv) != 3:
+        print("Usage: doom_worker.py <session_json> <output_png>", file=sys.stderr)
+        return 2
+
+    session_json = Path(sys.argv[1])
+    out_png = Path(sys.argv[2])
+
+    state = json.loads(session_json.read_text(encoding="utf-8"))
+    history = state.get("history", [])
+    seed = int(state.get("seed", 1337))
+    backend = os.getenv("DOOM_ENGINE", "doomgeneric").strip().lower()
+
+    try:
+        if backend == "doomgeneric":
+            run_doomgeneric(history, out_png)
+        else:
+            run_vizdoom(history, seed, out_png)
+    except Exception as exc:
+        print(f"primary_backend_failed={backend}: {exc}", file=sys.stderr)
+        if backend != "vizdoom":
+            run_vizdoom(history, seed, out_png)
+        else:
+            raise
+
     return 0
 
 

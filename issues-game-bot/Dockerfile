@@ -11,6 +11,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-venv \
     python3-pip \
+    git \
+    make \
+    gcc \
     libgl1 \
     libopenal1 \
     libx11-6 \
@@ -27,6 +30,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 RUN python scripts/fetch_doom_assets.py
+RUN git clone --depth=1 https://github.com/ozkl/doomgeneric /tmp/doomgeneric \
+    && cp /app/scripts/doomgeneric_issuebot.c /tmp/doomgeneric/doomgeneric/doomgeneric_issuebot.c \
+    && cp /app/scripts/Makefile.issuebot /tmp/doomgeneric/doomgeneric/Makefile.issuebot \
+    && make -C /tmp/doomgeneric/doomgeneric -f Makefile.issuebot \
+    && mkdir -p /app/scripts/assets \
+    && cp /tmp/doomgeneric/doomgeneric/doomgeneric_issuebot /app/scripts/assets/doomgeneric_issuebot \
+    && rm -rf /tmp/doomgeneric
 
 EXPOSE 8080
 CMD ["npm", "start"]

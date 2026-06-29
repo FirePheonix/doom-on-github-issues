@@ -5,14 +5,20 @@ import { updateIssueGameView } from "../views/gameView.js";
 import { isSessionInactive } from "./inactivity.js";
 import { persistSessionArtifacts } from "./artifacts.js";
 
-export async function startIssueSession({ github, owner, repo, issueNumber, originalBody, req, projectRoot }) {
+export async function startIssueSession({ github, owner, repo, issueNumber, originalBody, req, projectRoot, engine }) {
   await ensureDataDir();
   const state = createSession(issueNumber);
-  await persistSessionArtifacts(projectRoot, issueNumber, state);
+  await persistSessionArtifacts({
+    projectRoot,
+    issueNumber,
+    state,
+    mode: "start",
+    engine
+  });
   await updateIssueGameView(github, owner, repo, issueNumber, originalBody, req, state);
 }
 
-export async function closeIssueSession({ github, owner, repo, issueNumber }) {
+export async function closeIssueSession({ github, owner, repo, issueNumber, engine }) {
   await ensureDataDir();
   if (!(await hasSession(issueNumber))) return;
 
@@ -21,6 +27,7 @@ export async function closeIssueSession({ github, owner, repo, issueNumber }) {
   state.status = "closed";
   state.log = ["Issue closed. Session frozen. Reopen issue or comment `restart` to start fresh."];
   await saveSession(issueNumber, state);
+  await engine?.stopSession?.(issueNumber);
 
   await postIssueComment(
     github,
@@ -55,7 +62,8 @@ export async function applyIssueCommentCommand({
   originalBody,
   req,
   projectRoot,
-  inactivityMs
+  inactivityMs,
+  engine
 }) {
   await ensureDataDir();
 
@@ -74,6 +82,7 @@ export async function applyIssueCommentCommand({
     state.inactivityNotifiedAt = new Date().toISOString();
     state.log = [`Game exited after ${Math.floor(inactivityMs / 60000)} minutes of inactivity.`];
     await saveSession(issueNumber, state);
+    await engine?.stopSession?.(issueNumber);
     await postPauseNoticeOnce({
       github,
       owner,
@@ -109,8 +118,19 @@ export async function applyIssueCommentCommand({
     return;
   }
 
-  stepSession(state, commentBody);
-  await persistSessionArtifacts(projectRoot, issueNumber, state);
+  const transition = stepSession(state, commentBody);
+  if (state.status === "exited") {
+    await engine?.stopSession?.(issueNumber);
+  }
+  const mode = transition.restarted ? "restart" : "step";
+  await persistSessionArtifacts({
+    projectRoot,
+    issueNumber,
+    state,
+    engine,
+    mode,
+    appliedCommands: transition.appliedCommands
+  });
   await updateIssueGameView(github, owner, repo, issueNumber, originalBody, req, state);
 }
 

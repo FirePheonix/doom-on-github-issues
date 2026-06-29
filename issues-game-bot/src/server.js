@@ -5,7 +5,7 @@ import { createJobQueue } from "./jobs/queue.js";
 import { createLockStore } from "./jobs/locks.js";
 import { createJobStatusStore } from "./jobs/status.js";
 import { createIssueThrottle } from "./sessions/throttle.js";
-import { ensureEngineAssets } from "./engine.js";
+import { createPersistentEngine, ensureEngineAssets } from "./engine.js";
 import { createDebugRouter } from "./routes/debug.js";
 import { createFramesRouter } from "./routes/frames.js";
 import { createHealthRouter } from "./routes/health.js";
@@ -16,6 +16,7 @@ export function createServer() {
   const app = express();
   const github = createGithubClient();
   const config = readRuntimeConfig();
+  const engine = createPersistentEngine(projectRoot);
   const lockStore = createLockStore();
   const jobStatusStore = createJobStatusStore();
   const jobQueue = createJobQueue({
@@ -40,9 +41,9 @@ export function createServer() {
     config,
     lockStore,
     jobQueue,
-    throttle
+    throttle,
+    engine
   }));
 
   return app;
 }
-

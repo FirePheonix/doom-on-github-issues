@@ -80,25 +80,25 @@ export function stepSession(state, rawCommand) {
   if (rawCommand && !command) {
     state.log.unshift(`Unknown command: ${rawCommand.trim().split(/\s+/)[0]}`);
     state.log = state.log.slice(0, 8);
-    return { state, acceptedCommand: null };
+    return { state, acceptedCommand: null, appliedCommands: [], restarted: false };
   }
 
   if (!command) {
-    return { state, acceptedCommand: null };
+    return { state, acceptedCommand: null, appliedCommands: [], restarted: false };
   }
 
   if (command === "help") {
     state.log.unshift("Commands: w a s d fire enter exit restart help");
     state.lastActivityAt = new Date().toISOString();
     state.log = state.log.slice(0, 8);
-    return { state, acceptedCommand: command };
+    return { state, acceptedCommand: command, appliedCommands: [], restarted: false };
   }
 
   if (command === "restart") {
     restartInPlace(state);
     state.lastActivityAt = new Date().toISOString();
     state.log = state.log.slice(0, 8);
-    return { state, acceptedCommand: command };
+    return { state, acceptedCommand: command, appliedCommands: [], restarted: true };
   }
 
   if (command === "exit" || command === "quit") {
@@ -106,19 +106,21 @@ export function stepSession(state, rawCommand) {
     state.lastActivityAt = new Date().toISOString();
     state.log.unshift("Game exited. Comment `restart` to start a new run.");
     state.log = state.log.slice(0, 8);
-    return { state, acceptedCommand: command };
+    return { state, acceptedCommand: command, appliedCommands: [], restarted: false };
   }
 
   const repeat = getCommandRepeat(rawCommand, command);
+  const appliedCommands = [];
   for (let i = 0; i < repeat; i += 1) {
     state.history.push(command);
+    appliedCommands.push(command);
   }
   state.tick += repeat;
   state.lastActivityAt = new Date().toISOString();
   state.inactivityNotifiedAt = null;
   state.log.unshift(`Applied command: ${command}${repeat > 1 ? ` x${repeat}` : ""}`);
   state.log = state.log.slice(0, 8);
-  return { state, acceptedCommand: command };
+  return { state, acceptedCommand: command, appliedCommands, restarted: false };
 }
 
 export function summarizeState(state) {

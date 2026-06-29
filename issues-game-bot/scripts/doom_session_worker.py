@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -137,6 +138,29 @@ def build_vizdoom_game(seed: int) -> DoomGame:
 
 class SessionWorker:
     def __init__(self, out_png: Path, seed: int):
+        backend = os.getenv("DOOM_ENGINE", "doomgeneric").strip().lower()
+        self.backend = None
+        if backend == "doomgeneric":
+            try:
+                self.backend = DoomGenericSession(out_png)
+                return
+            except Exception as exc:
+                print(f"doomgeneric_session_worker_failed={exc}", file=sys.stderr)
+
+        self.backend = VizDoomSession(out_png, seed)
+
+    def step(self, commands: list[str]) -> None:
+        self.backend.step(commands)
+
+    def snapshot(self) -> None:
+        self.backend.snapshot()
+
+    def shutdown(self) -> None:
+        self.backend.shutdown()
+
+
+class VizDoomSession:
+    def __init__(self, out_png: Path, seed: int):
         self.out_png = out_png
         self.seed = seed
         self.game = build_vizdoom_game(seed)
@@ -162,6 +186,71 @@ class SessionWorker:
 
     def shutdown(self) -> None:
         self.game.close()
+
+
+class DoomGenericSession:
+    def __init__(self, out_png: Path):
+        assets_root = Path(__file__).resolve().parent / "assets"
+        iwad_path = assets_root / "doom1.wad"
+        bin_path = assets_root / "doomgeneric_session_worker"
+
+        if not iwad_path.exists():
+            raise RuntimeError("doomgeneric mode requires scripts/assets/doom1.wad")
+        if not bin_path.exists():
+            raise RuntimeError("doomgeneric session binary not found at scripts/assets/doomgeneric_session_worker")
+
+        self.proc = subprocess.Popen(
+            [
+                str(bin_path),
+                "--iwad",
+                str(iwad_path),
+                "--out",
+                str(out_png.with_suffix(".ppm")),
+                "--ticks-per-cmd",
+                os.getenv("DOOM_TICS_PER_COMMENT", "4"),
+            ],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1,
+        )
+        self.out_png = out_png
+        self.ppm_path = out_png.with_suffix(".ppm")
+
+    def _roundtrip(self, line: str) -> None:
+        if not self.proc.stdin or not self.proc.stdout:
+            raise RuntimeError("doomgeneric session process pipes unavailable")
+        self.proc.stdin.write(line + "\n")
+        self.proc.stdin.flush()
+        reply = self.proc.stdout.readline()
+        if not reply:
+            err = self.proc.stderr.read() if self.proc.stderr else ""
+            raise RuntimeError(f"doomgeneric session process ended unexpectedly: {err}")
+        if not reply.strip().startswith("OK"):
+            raise RuntimeError(f"doomgeneric session error: {reply.strip()}")
+
+        if self.ppm_path.exists():
+            image = Image.open(self.ppm_path)
+            save_output_image(image, self.out_png)
+
+    def step(self, commands: list[str]) -> None:
+        if not commands:
+            self.snapshot()
+            return
+        cmd = "STEP " + " ".join((c or "").strip().lower() for c in commands if c)
+        self._roundtrip(cmd)
+
+    def snapshot(self) -> None:
+        self._roundtrip("SNAPSHOT")
+
+    def shutdown(self) -> None:
+        try:
+            self._roundtrip("SHUTDOWN")
+        except Exception:
+            pass
+        if self.proc.poll() is None:
+            self.proc.terminate()
 
 
 def main() -> int:

@@ -5,7 +5,7 @@ V2 keeps the same GitHub-driven control plane, but changes rendering from "full 
 ## Core Change
 
 - V1: start renderer every command, replay whole history, capture frame.
-- V2: keep a live Python Doom session worker per issue and apply only new commands.
+- V2: keep a live per-issue Doom session process and apply only new commands.
 
 ## Architecture
 
@@ -25,5 +25,7 @@ flowchart LR
 ## Notes
 
 - Per-issue worker is long-lived in process.
+- Primary worker backend is DoomGeneric session process.
+- ViZDoom remains fallback if DoomGeneric worker startup fails.
 - Worker commands are incremental (`step`) and frame snapshot is updated after each step.
-- If worker fails, server falls back to V1 replay render path.
+- If persistent worker flow fails, server falls back to V1 replay render path.

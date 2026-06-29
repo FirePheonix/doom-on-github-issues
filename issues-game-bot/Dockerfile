@@ -33,10 +33,12 @@ COPY . .
 RUN python scripts/fetch_doom_assets.py
 RUN git clone --depth=1 https://github.com/ozkl/doomgeneric /tmp/doomgeneric \
     && cp /app/scripts/doomgeneric_issuebot.c /tmp/doomgeneric/doomgeneric/doomgeneric_issuebot.c \
+    && cp /app/scripts/doomgeneric_session_worker.c /tmp/doomgeneric/doomgeneric/doomgeneric_session_worker.c \
     && cp /app/scripts/Makefile.issuebot /tmp/doomgeneric/doomgeneric/Makefile.issuebot \
     && make -C /tmp/doomgeneric/doomgeneric -f Makefile.issuebot \
     && mkdir -p /app/scripts/assets \
     && cp /tmp/doomgeneric/doomgeneric/doomgeneric_issuebot /app/scripts/assets/doomgeneric_issuebot \
+    && cp /tmp/doomgeneric/doomgeneric/doomgeneric_session_worker /app/scripts/assets/doomgeneric_session_worker \
     && rm -rf /tmp/doomgeneric
 
 EXPOSE 8080

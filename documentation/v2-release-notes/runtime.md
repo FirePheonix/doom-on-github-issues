@@ -20,11 +20,17 @@
 
 - `scripts/doom_session_worker.py`
   - long-lived stdin/stdout JSON protocol
-  - keeps a live ViZDoom game instance
+  - uses DoomGeneric session worker as primary backend
+  - uses live ViZDoom session as fallback backend
   - commands:
     - `snapshot`
     - `step` with command list
     - `shutdown`
+
+- `scripts/doomgeneric_session_worker.c`
+  - long-lived DoomGeneric process
+  - receives `STEP`, `SNAPSHOT`, `SHUTDOWN` over stdin
+  - writes PPM frame after each request, converted to PNG by Python wrapper
 
 ## Protocol
 

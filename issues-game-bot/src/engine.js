@@ -60,6 +60,7 @@ function createPersistentSessionWorker({ projectRoot, issueNumber, framePath, se
   let closed = false;
   let chain = Promise.resolve();
   const pending = new Map();
+  const requestTimeoutMs = Number(process.env.DOOM_SESSION_WORKER_TIMEOUT_MS || "20000");
 
   function rejectPending(error) {
     for (const item of pending.values()) {
@@ -126,11 +127,32 @@ function createPersistentSessionWorker({ projectRoot, issueNumber, framePath, se
     const message = JSON.stringify({ id, type, ...payload }) + "\n";
 
     const run = () => new Promise((resolve, reject) => {
-      pending.set(id, { resolve, reject });
+      const timeout = setTimeout(() => {
+        pending.delete(id);
+        reject(new Error(`session_worker_timeout type=${type} issue=${issueNumber} after ${requestTimeoutMs}ms`));
+      }, requestTimeoutMs);
+
+      pending.set(id, {
+        resolve: (value) => {
+          clearTimeout(timeout);
+          resolve(value);
+        },
+        reject: (error) => {
+          clearTimeout(timeout);
+          reject(error);
+        }
+      });
+
       child.stdin.write(message, "utf8", (error) => {
         if (error) {
+          const item = pending.get(id);
           pending.delete(id);
-          reject(error);
+          if (item) {
+            item.reject(error);
+          } else {
+            clearTimeout(timeout);
+            reject(error);
+          }
         }
       });
     });
@@ -142,7 +164,10 @@ function createPersistentSessionWorker({ projectRoot, issueNumber, framePath, se
   async function shutdown() {
     if (closed) return;
     try {
-      await request("shutdown");
+      await Promise.race([
+        request("shutdown"),
+        new Promise((resolve) => setTimeout(resolve, 1000))
+      ]);
     } catch {
       // best effort
     }

@@ -35,7 +35,8 @@ export async function persistSessionArtifacts({
       const historyPrefix = state.history.slice(0, prefixLen);
       await engine.applyCommands(issueNumber, state.seed, framePath, historyPrefix, appliedCommands);
     }
-  } catch {
+  } catch (error) {
+    console.error(`Persistent engine path failed for issue ${issueNumber}; falling back to replay renderer`, error);
     if (engine?.invalidate) {
       await engine.invalidate(issueNumber);
     }

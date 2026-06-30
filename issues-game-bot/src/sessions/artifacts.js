@@ -1,15 +1,16 @@
 import { renderEngineFrame } from "../engine.js";
-import { getFramePath, getSessionPath, saveSession } from "../storage.js";
+import { getFramePath, getSessionPath } from "../storage.js";
 
 export async function persistSessionArtifacts({
   projectRoot,
   issueNumber,
   state,
+  sessionRepository,
   sessionManager = null,
   mode = "step",
   appliedCommands = []
 }) {
-  await saveSession(issueNumber, state);
+  await sessionRepository.save(issueNumber, state);
 
   const sessionPath = getSessionPath(issueNumber);
   const framePath = getFramePath(issueNumber);

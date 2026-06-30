@@ -76,6 +76,26 @@ function createFakeSessionManager() {
   };
 }
 
+function createFakeSessionRepository() {
+  const sessions = new Map();
+
+  return {
+    async load(issueNumber) {
+      const state = sessions.get(issueNumber);
+      if (!state) {
+        throw new Error(`Session not found for issue ${issueNumber}`);
+      }
+      return JSON.parse(JSON.stringify(state));
+    },
+    async save(issueNumber, state) {
+      sessions.set(issueNumber, JSON.parse(JSON.stringify(state)));
+    },
+    async exists(issueNumber) {
+      return sessions.has(issueNumber);
+    }
+  };
+}
+
 function sign(secret, payload) {
   const digest = createHmac("sha256", secret).update(payload).digest("hex");
   return `sha256=${digest}`;
@@ -112,6 +132,7 @@ async function postWebhook(baseUrl, secret, event, payload) {
 
 async function main() {
   const github = createFakeGithubClient();
+  const sessionRepository = createFakeSessionRepository();
   const sessionManager = createFakeSessionManager();
   const config = {
     webhookSecret: "smoke-secret",
@@ -124,7 +145,7 @@ async function main() {
   process.env.GITHUB_REPO = "tetris-on-pdf";
   process.env.PUBLIC_BASE_URL = "http://127.0.0.1";
 
-  const app = createServer({ github, config, sessionManager });
+  const app = createServer({ github, config, sessionRepository, sessionManager });
   const server = app.listen(0);
   await new Promise((resolve) => server.once("listening", resolve));
 

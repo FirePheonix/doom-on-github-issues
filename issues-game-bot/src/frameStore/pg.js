@@ -3,5 +3,5 @@ export function getDefaultFrameStoreKind(env = process.env) {
   if (configured) {
     return configured;
   }
-  return env.FRAME_S3_BUCKET ? "s3" : "local";
+  return env.S3_BUCKET_NAME || env.FRAME_S3_BUCKET ? "s3" : "local";
 }

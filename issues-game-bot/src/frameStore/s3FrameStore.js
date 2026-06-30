@@ -16,15 +16,15 @@ function inferPublicBaseUrl({ bucket, region, publicBaseUrl }) {
 }
 
 export function createS3FrameStore({
-  bucket = process.env.FRAME_S3_BUCKET,
+  bucket = process.env.S3_BUCKET_NAME || process.env.FRAME_S3_BUCKET,
   region = process.env.FRAME_S3_REGION || process.env.AWS_REGION || "us-east-1",
-  prefix = process.env.FRAME_S3_PREFIX || "frames",
+  prefix = process.env.S3_FOLDER_NAME || process.env.FRAME_S3_PREFIX || "frames",
   publicBaseUrl = process.env.FRAME_S3_PUBLIC_BASE_URL || "",
   endpoint = process.env.FRAME_S3_ENDPOINT || "",
   forcePathStyle = (process.env.FRAME_S3_FORCE_PATH_STYLE || "false").toLowerCase() === "true"
 } = {}) {
-  const safeBucket = requireEnvValue(bucket, "FRAME_S3_BUCKET");
-  const safeRegion = requireEnvValue(region, "FRAME_S3_REGION");
+  const safeBucket = requireEnvValue(bucket, "S3_BUCKET_NAME");
+  const safeRegion = requireEnvValue(region, "AWS_REGION");
   const safePrefix = prefix.replace(/^\/+|\/+$/g, "");
   const baseUrl = inferPublicBaseUrl({
     bucket: safeBucket,

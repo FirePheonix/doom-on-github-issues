@@ -68,6 +68,36 @@ npm run repository-mode:smoke
 npm run db:migrate
 ```
 
+## Supabase setup
+
+You can use Supabase as the managed database layer for this app without changing the runtime code.
+
+Recommended shape:
+- Supabase for `DATABASE_URL`
+- current S3 bucket for frame PNGs
+- no data deletion during the switch
+
+Steps:
+1. Create a Supabase project.
+2. In Supabase, copy a Postgres connection string from **Connect**.
+3. Put it in:
+   - `DATABASE_URL=postgres://...`
+4. Keep your existing S3 env:
+   - `AWS_ACCESS_KEY_ID=...`
+   - `AWS_SECRET_ACCESS_KEY=...`
+   - `AWS_REGION=...`
+   - `S3_BUCKET_NAME=...`
+   - `S3_FOLDER_NAME=...`
+5. Run:
+```bash
+npm run db:migrate
+```
+
+Notes:
+- For persistent app servers, use a direct or session-pooled Supabase connection string.
+- The app still uses the existing `pg` driver and repository layer; Supabase is treated as managed Postgres.
+- Frame PNGs can stay on S3. You do not need to move them to Supabase Storage to use Supabase for the database.
+
 ## Session persistence
 
 - Default repository mode:
@@ -84,14 +114,21 @@ npm run db:migrate
 ## Frame storage
 
 - Default frame store mode:
-  - `s3` when `FRAME_S3_BUCKET` is present
+  - `s3` when `S3_BUCKET_NAME` is present
   - otherwise `local`
 - Env:
   - `FRAME_STORE=local|s3`
-  - `FRAME_S3_BUCKET=...`
-  - `FRAME_S3_REGION=us-east-1`
-  - `FRAME_S3_PREFIX=frames`
-  - `FRAME_S3_PUBLIC_BASE_URL=https://...`
+  - `S3_BUCKET_NAME=...`
+  - `S3_FOLDER_NAME=frames`
+  - `AWS_REGION=us-east-1`
+  - `AWS_ACCESS_KEY_ID=...`
+  - `AWS_SECRET_ACCESS_KEY=...`
+  - `AWS_SESSION_TOKEN=...` optional
+  - public frame URL is inferred from bucket + region by default
+  - legacy aliases still supported:
+    - `FRAME_S3_BUCKET=...`
+    - `FRAME_S3_PREFIX=...`
+    - `FRAME_S3_PUBLIC_BASE_URL=https://...`
   - `FRAME_S3_ENDPOINT=https://...` for S3-compatible stores
   - `FRAME_S3_FORCE_PATH_STYLE=true|false`
 
@@ -130,11 +167,13 @@ Required vars:
 - `GITHUB_WEBHOOK_SECRET`
 - `PUBLIC_BASE_URL=https://<your-railway-domain>`
 - `DATABASE_URL=postgres://...`
-- `FRAME_S3_BUCKET=...`
-- `FRAME_S3_REGION=us-east-1`
-- `FRAME_S3_PUBLIC_BASE_URL=https://...`
+- `S3_BUCKET_NAME=...`
+- `S3_FOLDER_NAME=frames`
+- `AWS_REGION=us-east-1`
 - `AWS_ACCESS_KEY_ID=...`
 - `AWS_SECRET_ACCESS_KEY=...`
+- If using Supabase for the DB:
+  - `DATABASE_URL=...` from the Supabase project `Connect` dialog
 - Optional: `PYTHON_BIN=python3`, `DOOM_TICS_PER_COMMENT=5`
 - Optional: `DOOM_BOOT_DELAY_MS=500` (lower values improve first-frame delivery speed)
 - Optional: `DOOM_MODE=demons|classic` (default `demons`; use `classic` to attempt IWAD startup path)

@@ -28,3 +28,5 @@ flowchart LR
 - debug surface now includes session-manager state
 - session ownership is explicit instead of implicit in engine code
 - runtime composition moved into `src/runtime.js`, which now supports local E2E server smoke tests with injected dependencies
+- active sessions prefer in-memory hot state before repository reads
+- job debug state now includes queue/run timing for speed validation

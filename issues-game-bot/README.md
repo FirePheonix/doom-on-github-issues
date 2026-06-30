@@ -98,6 +98,7 @@ Required vars:
 ## Notes
 - This is still turn-based because GitHub comments are event-driven.
 - Renderer defaults to `doomgeneric` backend (full Doom code path with `doom1.wad`), with automatic `vizdoom` fallback if runtime/backend initialization fails.
+- Active sessions prefer in-memory state first, then repository fallback, to reduce per-command latency.
 - Closing a GitHub issue freezes that session as an issue-state action.
 - Inactive games exit after 5 minutes by default via the session manager timer; the GitHub issue remains open and `restart` starts a new run.
 - Sessions: `data/sessions/<issue>.json`

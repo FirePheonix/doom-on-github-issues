@@ -5,20 +5,32 @@ export function assertIdentifier(value, label) {
   return value;
 }
 
-export function getDefaultRepositoryKind(env = process.env) {
-  const configured = env.SESSION_REPOSITORY?.trim().toLowerCase();
+function getConfiguredKind(key, env = process.env) {
+  const configured = env[key]?.trim().toLowerCase();
   if (configured) {
     return configured;
   }
   return env.DATABASE_URL ? "postgres" : "file";
 }
 
+export function getDefaultRepositoryKind(env = process.env) {
+  return getConfiguredKind("SESSION_REPOSITORY", env);
+}
+
 export function getDefaultEventRepositoryKind(env = process.env) {
-  const configured = env.SESSION_EVENT_REPOSITORY?.trim().toLowerCase();
-  if (configured) {
-    return configured;
-  }
-  return getDefaultRepositoryKind(env);
+  return getConfiguredKind("SESSION_EVENT_REPOSITORY", env);
+}
+
+export function getDefaultCommandRepositoryKind(env = process.env) {
+  return getConfiguredKind("SESSION_COMMAND_REPOSITORY", env);
+}
+
+export function getDefaultLeaseRepositoryKind(env = process.env) {
+  return getConfiguredKind("SESSION_LEASE_REPOSITORY", env);
+}
+
+export function getDefaultFrameRepositoryKind(env = process.env) {
+  return getConfiguredKind("SESSION_FRAME_REPOSITORY", env);
 }
 
 export function createPgPoolProvider(connectionString = process.env.DATABASE_URL) {

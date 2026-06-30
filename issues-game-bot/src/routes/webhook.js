@@ -55,7 +55,7 @@ export function createWebhookRouter({
       }
 
       if (event === "issues" && payload?.action === "reopened") {
-        await handleIssueReopened({ github, owner, repo, payload, res, lockStore, jobQueue, sessionRepository });
+        await handleIssueReopened({ github, owner, repo, payload, res, lockStore, jobQueue, sessionRepository, sessionManager });
         return;
       }
 
@@ -122,7 +122,7 @@ async function handleIssueClosed({ github, owner, repo, payload, res, lockStore,
   res.status(202).json({ ok: true, accepted: "issues.closed", issueNumber });
 }
 
-async function handleIssueReopened({ github, owner, repo, payload, res, lockStore, jobQueue, sessionRepository }) {
+async function handleIssueReopened({ github, owner, repo, payload, res, lockStore, jobQueue, sessionRepository, sessionManager }) {
   const issueNumber = getIssueNumber(payload);
   if (!issueNumber) {
     res.status(200).json({ ok: true, ignored: "missing_issue_number" });
@@ -131,7 +131,7 @@ async function handleIssueReopened({ github, owner, repo, payload, res, lockStor
 
   jobQueue.schedule(issueNumber, async () => {
     await lockStore.withIssueLock(issueNumber, async () => {
-      await reopenIssueSession({ github, owner, repo, issueNumber, sessionRepository });
+      await reopenIssueSession({ github, owner, repo, issueNumber, sessionRepository, sessionManager });
     });
   });
 

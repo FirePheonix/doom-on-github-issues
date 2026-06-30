@@ -4,6 +4,10 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
   const engine = createPersistentEngine(projectRoot);
   const records = new Map();
 
+  function cloneState(state) {
+    return structuredClone(state);
+  }
+
   function getRecord(issueNumber) {
     return records.get(issueNumber) || null;
   }
@@ -70,6 +74,7 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
       seed,
       framePath,
       status: "active",
+      stateSnapshot: null,
       lastTouchedAt: new Date().toISOString(),
       expiresAt: null,
       expiring: false,
@@ -77,6 +82,24 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     };
     records.set(issueNumber, record);
     return record;
+  }
+
+  function rememberState(issueNumber, state, framePath = "") {
+    const record = ensureRecord(issueNumber, state?.seed, framePath || getRecord(issueNumber)?.framePath || "");
+    record.stateSnapshot = cloneState(state);
+    record.status = state?.status || record.status;
+    record.lastTouchedAt = new Date().toISOString();
+    if (framePath) {
+      record.framePath = framePath;
+    }
+  }
+
+  function getState(issueNumber) {
+    const record = records.get(issueNumber);
+    if (!record?.stateSnapshot) {
+      return null;
+    }
+    return cloneState(record.stateSnapshot);
   }
 
   async function startSession(issueNumber, seed, framePath) {
@@ -106,6 +129,9 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     const record = records.get(issueNumber);
     if (record) {
       record.status = status;
+      if (record.stateSnapshot) {
+        record.stateSnapshot.status = status;
+      }
       record.expiresAt = null;
       clearTimer(record);
     }
@@ -132,7 +158,8 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
       lastTouchedAt: record.lastTouchedAt,
       expiresAt: record.expiresAt,
       expiring: record.expiring,
-      framePath: record.framePath
+      framePath: record.framePath,
+      tick: record.stateSnapshot?.tick ?? null
     };
   }
 
@@ -143,7 +170,8 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
       lastTouchedAt: record.lastTouchedAt,
       expiresAt: record.expiresAt,
       expiring: record.expiring,
-      framePath: record.framePath
+      framePath: record.framePath,
+      tick: record.stateSnapshot?.tick ?? null
     }));
   }
 
@@ -153,7 +181,9 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     applyCommands,
     stopSession,
     invalidate,
+    getState,
     setStatus,
+    rememberState,
     get,
     list
   };

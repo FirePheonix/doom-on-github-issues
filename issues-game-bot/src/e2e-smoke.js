@@ -57,12 +57,28 @@ function createFakeSessionManager() {
       const record = ensure(issueNumber, "");
       record.state = status;
       record.expiresAt = null;
+      if (record.stateSnapshot) {
+        record.stateSnapshot.status = status;
+      }
     },
     async invalidate(issueNumber) {
       sessions.delete(issueNumber);
     },
     setStatus(issueNumber, status) {
       ensure(issueNumber, "").state = status;
+    },
+    rememberState(issueNumber, state, framePath = "") {
+      const record = ensure(issueNumber, framePath);
+      record.state = state.status;
+      record.tick = state.tick;
+      record.stateSnapshot = JSON.parse(JSON.stringify(state));
+    },
+    getState(issueNumber) {
+      const record = sessions.get(issueNumber);
+      if (!record?.stateSnapshot) {
+        return null;
+      }
+      return JSON.parse(JSON.stringify(record.stateSnapshot));
     },
     get(issueNumber) {
       return sessions.get(issueNumber) || { state: "unknown" };
@@ -78,9 +94,16 @@ function createFakeSessionManager() {
 
 function createFakeSessionRepository() {
   const sessions = new Map();
+  const stats = {
+    load: 0,
+    loadOptional: 0,
+    save: 0
+  };
 
   return {
+    stats,
     async load(issueNumber) {
+      stats.load += 1;
       const state = sessions.get(issueNumber);
       if (!state) {
         throw new Error(`Session not found for issue ${issueNumber}`);
@@ -88,12 +111,14 @@ function createFakeSessionRepository() {
       return JSON.parse(JSON.stringify(state));
     },
     async save(issueNumber, state) {
+      stats.save += 1;
       sessions.set(issueNumber, JSON.parse(JSON.stringify(state)));
     },
     async exists(issueNumber) {
       return sessions.has(issueNumber);
     },
     async loadOptional(issueNumber) {
+      stats.loadOptional += 1;
       if (!sessions.has(issueNumber)) {
         return null;
       }
@@ -224,6 +249,11 @@ async function main() {
     }
     if (!["closed", "inactive", "exited", "active"].includes(debug.session.state)) {
       throw new Error(`Unexpected session state: ${debug.session.state}`);
+    }
+    if (sessionRepository.stats.load !== 0 || sessionRepository.stats.loadOptional !== 0) {
+      throw new Error(
+        `Expected hot-session cache to avoid repository reads, got load=${sessionRepository.stats.load} loadOptional=${sessionRepository.stats.loadOptional}`
+      );
     }
 
     console.log("e2e-smoke ok");

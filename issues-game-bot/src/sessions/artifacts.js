@@ -14,6 +14,7 @@ export async function persistSessionArtifacts({
 
   const sessionPath = getSessionPath(issueNumber);
   const framePath = getFramePath(issueNumber);
+  sessionManager?.rememberState?.(issueNumber, state, framePath);
 
   try {
     if (!sessionManager) {

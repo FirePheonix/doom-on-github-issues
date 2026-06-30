@@ -22,6 +22,17 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     return status === "active";
   }
 
+  function getRemainingMs(lastActivityAt) {
+    if (!lastActivityAt) {
+      return inactivityMs;
+    }
+    const last = Date.parse(lastActivityAt);
+    if (!Number.isFinite(last)) {
+      return inactivityMs;
+    }
+    return Math.max(0, inactivityMs - (Date.now() - last));
+  }
+
   function setStatus(issueNumber, status) {
     const record = records.get(issueNumber);
     if (!record) return;
@@ -35,12 +46,12 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     armTimer(issueNumber);
   }
 
-  function armTimer(issueNumber) {
+  function armTimer(issueNumber, remainingMs = inactivityMs) {
     const record = records.get(issueNumber);
     if (!record || !shouldArmTimer(record.status)) return;
 
     clearTimer(record);
-    record.expiresAt = new Date(Date.now() + inactivityMs).toISOString();
+    record.expiresAt = new Date(Date.now() + remainingMs).toISOString();
     record.timer = setTimeout(async () => {
       const latest = records.get(issueNumber);
       if (!latest || latest.expiring || !shouldArmTimer(latest.status)) {
@@ -57,7 +68,7 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
           current.expiring = false;
         }
       }
-    }, Math.max(0, inactivityMs));
+    }, Math.max(0, remainingMs));
   }
 
   function ensureRecord(issueNumber, seed, framePath) {
@@ -76,6 +87,7 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
       status: "active",
       stateSnapshot: null,
       lastTouchedAt: new Date().toISOString(),
+      source: "live",
       expiresAt: null,
       expiring: false,
       timer: null
@@ -88,7 +100,7 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     const record = ensureRecord(issueNumber, state?.seed, framePath || getRecord(issueNumber)?.framePath || "");
     record.stateSnapshot = cloneState(state);
     record.status = state?.status || record.status;
-    record.lastTouchedAt = new Date().toISOString();
+    record.lastTouchedAt = state?.lastActivityAt || new Date().toISOString();
     if (framePath) {
       record.framePath = framePath;
     }
@@ -106,6 +118,7 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     const record = ensureRecord(issueNumber, seed, framePath);
     record.status = "active";
     await engine.startSession(issueNumber, seed, framePath);
+    record.source = "live";
     armTimer(issueNumber);
   }
 
@@ -113,6 +126,7 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     const record = ensureRecord(issueNumber, seed, framePath);
     record.status = "active";
     await engine.restartSession(issueNumber, seed, framePath);
+    record.source = "live";
     armTimer(issueNumber);
   }
 
@@ -122,7 +136,22 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     if (Array.isArray(commands) && commands.length > 0) {
       await engine.applyCommands(issueNumber, seed, framePath, historyPrefix, commands);
     }
+    record.source = "live";
     armTimer(issueNumber);
+  }
+
+  function restoreSession(state, framePath) {
+    const record = ensureRecord(state.issueNumber, state.seed, framePath);
+    record.status = state.status;
+    record.source = "restored";
+    record.stateSnapshot = cloneState(state);
+    record.lastTouchedAt = state.lastActivityAt || new Date().toISOString();
+    if (!shouldArmTimer(state.status)) {
+      record.expiresAt = null;
+      clearTimer(record);
+      return;
+    }
+    armTimer(state.issueNumber, getRemainingMs(state.lastActivityAt));
   }
 
   async function stopSession(issueNumber, status = "stopped") {
@@ -155,6 +184,7 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
 
     return {
       state: record.status,
+      source: record.source,
       lastTouchedAt: record.lastTouchedAt,
       expiresAt: record.expiresAt,
       expiring: record.expiring,
@@ -167,6 +197,7 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     return Array.from(records.values()).map((record) => ({
       issueNumber: record.issueNumber,
       state: record.status,
+      source: record.source,
       lastTouchedAt: record.lastTouchedAt,
       expiresAt: record.expiresAt,
       expiring: record.expiring,
@@ -179,6 +210,7 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     startSession,
     restartSession,
     applyCommands,
+    restoreSession,
     stopSession,
     invalidate,
     getState,

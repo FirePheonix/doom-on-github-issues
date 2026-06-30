@@ -17,8 +17,24 @@ export function createServer(options = {}) {
     throttle,
     sessionRepository,
     sessionEventRepository,
-    sessionManager
+    sessionManager,
+    prime,
+    recovery
   } = createRuntimeServices(options);
+
+  app.locals.runtimeServices = {
+    projectRoot,
+    config,
+    lockStore,
+    jobStatusStore,
+    jobQueue,
+    throttle,
+    sessionRepository,
+    sessionEventRepository,
+    sessionManager,
+    prime,
+    recovery
+  };
 
   app.use(express.json({
     limit: "1mb",
@@ -28,7 +44,12 @@ export function createServer(options = {}) {
   }));
 
   app.use(createHealthRouter({ github }));
-  app.use(createDebugRouter({ jobStatusStore, sessionManager, sessionEventRepository }));
+  app.use(createDebugRouter({
+    jobStatusStore,
+    sessionManager,
+    sessionEventRepository,
+    runtimeServices: app.locals.runtimeServices
+  }));
   app.use(createFramesRouter());
   app.use(createWebhookRouter({
     github,
@@ -41,18 +62,6 @@ export function createServer(options = {}) {
     sessionEventRepository,
     sessionManager
   }));
-
-  app.locals.runtimeServices = {
-    projectRoot,
-    config,
-    lockStore,
-    jobStatusStore,
-    jobQueue,
-    throttle,
-    sessionRepository,
-    sessionEventRepository,
-    sessionManager
-  };
 
   return app;
 }

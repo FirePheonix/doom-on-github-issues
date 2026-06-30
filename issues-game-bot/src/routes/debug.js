@@ -1,6 +1,6 @@
 import { Router } from "express";
 
-export function createDebugRouter({ jobStatusStore, sessionManager, sessionEventRepository }) {
+export function createDebugRouter({ jobStatusStore, sessionManager, sessionEventRepository, runtimeServices }) {
   const router = Router();
 
   router.get("/debug/issues/:issueNumber", async (req, res) => {
@@ -27,6 +27,13 @@ export function createDebugRouter({ jobStatusStore, sessionManager, sessionEvent
     res.json({
       ok: true,
       sessions: sessionManager?.list() || []
+    });
+  });
+
+  router.get("/debug/runtime", (_req, res) => {
+    res.json({
+      ok: true,
+      recovery: runtimeServices?.recovery || { primed: false }
     });
   });
 

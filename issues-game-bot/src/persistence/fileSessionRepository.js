@@ -1,5 +1,6 @@
-import { readFile, writeFile } from "node:fs/promises";
-import { getSessionPath } from "../storage.js";
+import { readdir, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { getSessionPath, getSessionsDir } from "../storage.js";
 
 export function createFileSessionRepository() {
   const cache = new Map();
@@ -45,11 +46,36 @@ export function createFileSessionRepository() {
     }
   }
 
+  async function listByStatus(statuses = []) {
+    let files = [];
+    try {
+      files = await readdir(getSessionsDir());
+    } catch {
+      return [];
+    }
+
+    const wanted = statuses.length > 0 ? new Set(statuses) : null;
+    const results = [];
+
+    for (const file of files) {
+      if (path.extname(file) !== ".json") continue;
+      const issueNumber = Number(path.basename(file, ".json"));
+      if (!Number.isFinite(issueNumber)) continue;
+      const state = await loadOptional(issueNumber);
+      if (!state) continue;
+      if (wanted && !wanted.has(state.status)) continue;
+      results.push(state);
+    }
+
+    return results;
+  }
+
   return {
     kind: "file",
     load,
     loadOptional,
     save,
-    exists
+    exists,
+    listByStatus
   };
 }

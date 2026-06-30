@@ -5,6 +5,7 @@ import { createJobQueue } from "./jobs/queue.js";
 import { createLockStore } from "./jobs/locks.js";
 import { createJobStatusStore } from "./jobs/status.js";
 import { createSessionEventRepository, createSessionRepository } from "./persistence/index.js";
+import { getFramePath } from "./storage.js";
 import { expireIssueSession } from "./sessions/lifecycle.js";
 import { createSessionManager } from "./sessions/manager.js";
 import { createIssueThrottle } from "./sessions/throttle.js";
@@ -25,6 +26,12 @@ export function createRuntimeServices({
     beforeJob: beforeJob ?? (sessionManager ? null : () => ensureEngineAssets(projectRoot))
   });
   const throttle = createIssueThrottle(config.issueCooldownMs);
+  const recovery = {
+    primed: false,
+    restoredCount: 0,
+    restoredIssueNumbers: [],
+    primeAt: null
+  };
 
   const managedSessionManager = sessionManager || createSessionManager({
     projectRoot,
@@ -49,6 +56,26 @@ export function createRuntimeServices({
     }
   });
 
+  async function prime() {
+    if (recovery.primed) {
+      return recovery;
+    }
+
+    const activeStates = sessionRepository.listByStatus
+      ? await sessionRepository.listByStatus(["active"])
+      : [];
+
+    for (const state of activeStates) {
+      managedSessionManager.restoreSession(state, getFramePath(state.issueNumber));
+      recovery.restoredIssueNumbers.push(state.issueNumber);
+    }
+
+    recovery.restoredCount = recovery.restoredIssueNumbers.length;
+    recovery.primeAt = new Date().toISOString();
+    recovery.primed = true;
+    return recovery;
+  }
+
   return {
     projectRoot,
     github,
@@ -59,6 +86,8 @@ export function createRuntimeServices({
     throttle,
     sessionRepository,
     sessionEventRepository,
-    sessionManager: managedSessionManager
+    sessionManager: managedSessionManager,
+    prime,
+    recovery
   };
 }

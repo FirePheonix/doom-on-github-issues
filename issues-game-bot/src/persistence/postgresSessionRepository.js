@@ -72,11 +72,30 @@ export function createPostgresSessionRepository({
     return result.rowCount > 0;
   }
 
+  async function listByStatus(statuses = []) {
+    const pool = await getPool();
+    if (!Array.isArray(statuses) || statuses.length === 0) {
+      const query = `select session_json from ${safeSchema}.${safeTable} order by updated_at desc`;
+      const result = await pool.query(query);
+      return result.rows.map((row) => row.session_json);
+    }
+
+    const query = `
+      select session_json
+      from ${safeSchema}.${safeTable}
+      where session_json->>'status' = any($1::text[])
+      order by updated_at desc
+    `;
+    const result = await pool.query(query, [statuses]);
+    return result.rows.map((row) => row.session_json);
+  }
+
   return {
     kind: "postgres",
     load,
     loadOptional,
     save,
-    exists
+    exists,
+    listByStatus
   };
 }

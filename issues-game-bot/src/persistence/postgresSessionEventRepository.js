@@ -1,13 +1,4 @@
-function createMissingPgError() {
-  return new Error("Postgres session event repository requires the `pg` package. Install it before enabling SESSION_EVENT_REPOSITORY=postgres.");
-}
-
-function assertIdentifier(value, label) {
-  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(value)) {
-    throw new Error(`Invalid Postgres identifier for ${label}: ${value}`);
-  }
-  return value;
-}
+import { assertIdentifier, createPgPoolProvider } from "./pg.js";
 
 export function createPostgresSessionEventRepository({
   connectionString = process.env.DATABASE_URL,
@@ -20,21 +11,10 @@ export function createPostgresSessionEventRepository({
 
   const safeSchema = assertIdentifier(schema, "schema");
   const safeTable = assertIdentifier(table, "table");
-  let poolPromise = null;
-
-  async function getPool() {
-    if (!poolPromise) {
-      poolPromise = import("pg")
-        .then(({ Pool }) => new Pool({ connectionString }))
-        .catch(() => {
-          throw createMissingPgError();
-        });
-    }
-    return poolPromise;
-  }
+  const provider = createPgPoolProvider(connectionString);
 
   async function append(issueNumber, event) {
-    const pool = await getPool();
+    const pool = await provider.getPool();
     const query = `
       insert into ${safeSchema}.${safeTable} (issue_number, event_type, event_json, created_at)
       values ($1, $2, $3::jsonb, now())
@@ -43,7 +23,7 @@ export function createPostgresSessionEventRepository({
   }
 
   async function list(issueNumber) {
-    const pool = await getPool();
+    const pool = await provider.getPool();
     const query = `
       select event_json
       from ${safeSchema}.${safeTable}
@@ -55,7 +35,7 @@ export function createPostgresSessionEventRepository({
   }
 
   async function count(issueNumber) {
-    const pool = await getPool();
+    const pool = await provider.getPool();
     const query = `select count(*)::int as count from ${safeSchema}.${safeTable} where issue_number = $1`;
     const result = await pool.query(query, [issueNumber]);
     return result.rows[0]?.count || 0;
@@ -65,6 +45,7 @@ export function createPostgresSessionEventRepository({
     kind: "postgres",
     append,
     list,
-    count
+    count,
+    healthCheck: provider.healthCheck
   };
 }

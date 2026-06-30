@@ -33,7 +33,8 @@ export function createDebugRouter({ jobStatusStore, sessionManager, sessionEvent
   router.get("/debug/runtime", (_req, res) => {
     res.json({
       ok: true,
-      recovery: runtimeServices?.recovery || { primed: false }
+      recovery: runtimeServices?.recovery || { primed: false },
+      repositoryInfo: runtimeServices?.repositoryInfo || {}
     });
   });
 

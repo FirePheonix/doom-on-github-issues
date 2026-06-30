@@ -32,6 +32,18 @@ function createFakeSessionManager() {
   };
 }
 
+function createFakeSessionEventRepository() {
+  return {
+    async append() {},
+    async list() {
+      return [];
+    },
+    async count() {
+      return 0;
+    }
+  };
+}
+
 async function main() {
   const sessionRepository = createFakeSessionRepository([
     {
@@ -60,7 +72,7 @@ async function main() {
   const services = createRuntimeServices({
     github: null,
     sessionRepository,
-    sessionEventRepository: null,
+    sessionEventRepository: createFakeSessionEventRepository(),
     sessionManager,
     beforeJob: null
   });

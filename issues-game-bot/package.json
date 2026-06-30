@@ -6,12 +6,15 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
+    "db:migrate": "node src/migrate.js",
     "render:smoke": "node src/smoke.js",
     "e2e:smoke": "node src/e2e-smoke.js",
-    "recovery:smoke": "node src/recovery-smoke.js"
+    "recovery:smoke": "node src/recovery-smoke.js",
+    "repository-mode:smoke": "node src/repository-mode-smoke.js"
   },
   "dependencies": {
     "@octokit/rest": "^22.0.0",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "pg": "^8.22.0"
   }
 }

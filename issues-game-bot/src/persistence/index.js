@@ -1,10 +1,11 @@
 import { createFileSessionRepository } from "./fileSessionRepository.js";
 import { createFileSessionEventRepository } from "./fileSessionEventRepository.js";
+import { getDefaultEventRepositoryKind, getDefaultRepositoryKind } from "./pg.js";
 import { createPostgresSessionRepository } from "./postgresSessionRepository.js";
 import { createPostgresSessionEventRepository } from "./postgresSessionEventRepository.js";
 
 export function createSessionRepository(options = {}) {
-  const kind = (options.kind || process.env.SESSION_REPOSITORY || "file").trim().toLowerCase();
+  const kind = (options.kind || getDefaultRepositoryKind()).trim().toLowerCase();
 
   if (kind === "postgres") {
     return createPostgresSessionRepository(options.postgres);
@@ -14,7 +15,7 @@ export function createSessionRepository(options = {}) {
 }
 
 export function createSessionEventRepository(options = {}) {
-  const kind = (options.kind || process.env.SESSION_EVENT_REPOSITORY || process.env.SESSION_REPOSITORY || "file")
+  const kind = (options.kind || getDefaultEventRepositoryKind())
     .trim()
     .toLowerCase();
 
@@ -27,5 +28,6 @@ export function createSessionEventRepository(options = {}) {
 
 export { createFileSessionRepository } from "./fileSessionRepository.js";
 export { createFileSessionEventRepository } from "./fileSessionEventRepository.js";
+export { createPgPoolProvider, getDefaultEventRepositoryKind, getDefaultRepositoryKind } from "./pg.js";
 export { createPostgresSessionRepository } from "./postgresSessionRepository.js";
 export { createPostgresSessionEventRepository } from "./postgresSessionEventRepository.js";

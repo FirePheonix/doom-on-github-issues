@@ -43,7 +43,7 @@ export function createServer(options = {}) {
     }
   }));
 
-  app.use(createHealthRouter({ github }));
+  app.use(createHealthRouter({ github, runtimeServices: app.locals.runtimeServices }));
   app.use(createDebugRouter({
     jobStatusStore,
     sessionManager,

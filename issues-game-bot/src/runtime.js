@@ -32,6 +32,10 @@ export function createRuntimeServices({
     restoredIssueNumbers: [],
     primeAt: null
   };
+  const repositoryInfo = {
+    sessionRepositoryKind: sessionRepository.kind,
+    sessionEventRepositoryKind: sessionEventRepository.kind
+  };
 
   const managedSessionManager = sessionManager || createSessionManager({
     projectRoot,
@@ -76,6 +80,23 @@ export function createRuntimeServices({
     return recovery;
   }
 
+  async function healthCheck() {
+    const checks = [];
+
+    if (typeof sessionRepository.healthCheck === "function") {
+      checks.push(sessionRepository.healthCheck());
+    }
+    if (typeof sessionEventRepository.healthCheck === "function") {
+      checks.push(sessionEventRepository.healthCheck());
+    }
+
+    await Promise.all(checks);
+    return {
+      ok: true,
+      ...repositoryInfo
+    };
+  }
+
   return {
     projectRoot,
     github,
@@ -87,6 +108,8 @@ export function createRuntimeServices({
     sessionRepository,
     sessionEventRepository,
     sessionManager: managedSessionManager,
+    repositoryInfo,
+    healthCheck,
     prime,
     recovery
   };

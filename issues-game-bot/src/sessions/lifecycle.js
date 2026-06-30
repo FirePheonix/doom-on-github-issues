@@ -10,7 +10,16 @@ async function saveSessionState(sessionRepository, sessionManager, issueNumber, 
   sessionManager?.rememberState?.(issueNumber, state);
 }
 
-export async function startIssueSession({ github, owner, repo, issueNumber, originalBody, req, projectRoot, sessionRepository, sessionManager }) {
+async function appendSessionEvent(sessionEventRepository, issueNumber, event) {
+  if (!sessionEventRepository) return;
+  await sessionEventRepository.append(issueNumber, {
+    ...event,
+    issueNumber,
+    at: new Date().toISOString()
+  });
+}
+
+export async function startIssueSession({ github, owner, repo, issueNumber, originalBody, req, projectRoot, sessionRepository, sessionEventRepository, sessionManager }) {
   await ensureDataDir();
   const state = createSession(issueNumber);
   await persistSessionArtifacts({
@@ -21,10 +30,15 @@ export async function startIssueSession({ github, owner, repo, issueNumber, orig
     mode: "start",
     sessionManager
   });
+  await appendSessionEvent(sessionEventRepository, issueNumber, {
+    type: "session.started",
+    tick: state.tick,
+    status: state.status
+  });
   await updateIssueGameView(github, owner, repo, issueNumber, originalBody, req, state);
 }
 
-export async function closeIssueSession({ github, owner, repo, issueNumber, sessionRepository, sessionManager }) {
+export async function closeIssueSession({ github, owner, repo, issueNumber, sessionRepository, sessionEventRepository, sessionManager }) {
   await ensureDataDir();
   const state = sessionManager?.getState?.(issueNumber) || await sessionRepository.loadOptional(issueNumber);
   if (!state) return;
@@ -33,6 +47,11 @@ export async function closeIssueSession({ github, owner, repo, issueNumber, sess
   state.log = ["Issue closed. Session frozen. Reopen issue or comment `restart` to start fresh."];
   await saveSessionState(sessionRepository, sessionManager, issueNumber, state);
   await sessionManager?.stopSession?.(issueNumber, "closed");
+  await appendSessionEvent(sessionEventRepository, issueNumber, {
+    type: "issue.closed",
+    tick: state.tick,
+    status: state.status
+  });
 
   await postIssueComment(
     github,
@@ -43,7 +62,7 @@ export async function closeIssueSession({ github, owner, repo, issueNumber, sess
   );
 }
 
-export async function reopenIssueSession({ github, owner, repo, issueNumber, sessionRepository, sessionManager }) {
+export async function reopenIssueSession({ github, owner, repo, issueNumber, sessionRepository, sessionEventRepository, sessionManager }) {
   await ensureDataDir();
   const state = sessionManager?.getState?.(issueNumber) || await sessionRepository.loadOptional(issueNumber);
   if (!state) return;
@@ -53,6 +72,11 @@ export async function reopenIssueSession({ github, owner, repo, issueNumber, ses
     state.log.unshift("Issue reopened. Session resumed.");
   }
   await saveSessionState(sessionRepository, sessionManager, issueNumber, state);
+  await appendSessionEvent(sessionEventRepository, issueNumber, {
+    type: "issue.reopened",
+    tick: state.tick,
+    status: state.status
+  });
   await postIssueComment(github, owner, repo, issueNumber, "Issue reopened: session resumed.");
 }
 
@@ -68,6 +92,7 @@ export async function applyIssueCommentCommand({
   projectRoot,
   inactivityMs,
   sessionRepository,
+  sessionEventRepository,
   sessionManager
 }) {
   await ensureDataDir();
@@ -86,12 +111,18 @@ export async function applyIssueCommentCommand({
     state.log = [`Game exited after ${Math.floor(inactivityMs / 60000)} minutes of inactivity.`];
     await saveSessionState(sessionRepository, sessionManager, issueNumber, state);
     await sessionManager?.stopSession?.(issueNumber, "inactive");
+    await appendSessionEvent(sessionEventRepository, issueNumber, {
+      type: "session.exited.inactive.lazy",
+      tick: state.tick,
+      status: state.status
+    });
     await postPauseNoticeOnce({
       github,
       owner,
       repo,
       issueNumber,
       sessionRepository,
+      sessionEventRepository,
       sessionManager,
       state,
       body: `Game exited after inactivity (>${Math.floor(inactivityMs / 60000)} minutes). The GitHub issue stays open. Comment \`restart\` to start a new run.`
@@ -106,6 +137,7 @@ export async function applyIssueCommentCommand({
       repo,
       issueNumber,
       sessionRepository,
+      sessionEventRepository,
       sessionManager,
       state,
       body: "Game is not running. Comment `restart` to start a new run."
@@ -120,6 +152,7 @@ export async function applyIssueCommentCommand({
       repo,
       issueNumber,
       sessionRepository,
+      sessionEventRepository,
       sessionManager,
       state,
       body: "Issue is closed. Reopen issue or comment `restart` to continue."
@@ -128,8 +161,32 @@ export async function applyIssueCommentCommand({
   }
 
   const transition = stepSession(state, commentBody);
+  if (transition.acceptedCommand) {
+    await appendSessionEvent(sessionEventRepository, issueNumber, {
+      type: "command.applied",
+      rawCommand: commentBody,
+      acceptedCommand: transition.acceptedCommand,
+      repeated: transition.appliedCommands.length,
+      restarted: transition.restarted,
+      tickBefore: state.tick - transition.appliedCommands.length,
+      tickAfter: state.tick
+    });
+  } else if (commentBody?.trim()) {
+    await appendSessionEvent(sessionEventRepository, issueNumber, {
+      type: "command.ignored",
+      rawCommand: commentBody,
+      reason: "unknown_or_noop",
+      tick: state.tick
+    });
+  }
   if (state.status === "exited") {
     await sessionManager?.stopSession?.(issueNumber, "exited");
+    await appendSessionEvent(sessionEventRepository, issueNumber, {
+      type: "session.exited.command",
+      rawCommand: commentBody,
+      tick: state.tick,
+      status: state.status
+    });
   }
   const mode = transition.restarted ? "restart" : "step";
   await persistSessionArtifacts({
@@ -144,7 +201,7 @@ export async function applyIssueCommentCommand({
   await updateIssueGameView(github, owner, repo, issueNumber, originalBody, req, state);
 }
 
-export async function expireIssueSession({ github, owner, repo, issueNumber, sessionRepository, sessionManager, inactivityMs }) {
+export async function expireIssueSession({ github, owner, repo, issueNumber, sessionRepository, sessionEventRepository, sessionManager, inactivityMs }) {
   await ensureDataDir();
   const state = sessionManager?.getState?.(issueNumber) || await sessionRepository.loadOptional(issueNumber);
   if (!state) return;
@@ -159,6 +216,11 @@ export async function expireIssueSession({ github, owner, repo, issueNumber, ses
   state.log = [`Game exited after ${minutes} minutes of inactivity.`];
   await saveSessionState(sessionRepository, sessionManager, issueNumber, state);
   await sessionManager?.stopSession?.(issueNumber, "inactive");
+  await appendSessionEvent(sessionEventRepository, issueNumber, {
+    type: "session.exited.inactive.timer",
+    tick: state.tick,
+    status: state.status
+  });
   try {
     const issueBody = await getIssueBody(github, owner, repo, issueNumber);
     await updateIssueGameView(github, owner, repo, issueNumber, issueBody, null, state, inferBaseUrlFromEnv());
@@ -171,13 +233,14 @@ export async function expireIssueSession({ github, owner, repo, issueNumber, ses
     repo,
     issueNumber,
     sessionRepository,
+    sessionEventRepository,
     sessionManager,
     state,
     body: `Game exited after inactivity (>${minutes} minutes). The GitHub issue stays open. Comment \`restart\` to start a new run.`
   });
 }
 
-async function postPauseNoticeOnce({ github, owner, repo, issueNumber, sessionRepository, sessionManager, state, body }) {
+async function postPauseNoticeOnce({ github, owner, repo, issueNumber, sessionRepository, sessionEventRepository, sessionManager, state, body }) {
   if (state.pauseNoticeNotifiedAt) {
     return;
   }
@@ -185,5 +248,10 @@ async function postPauseNoticeOnce({ github, owner, repo, issueNumber, sessionRe
   state.pauseNoticeNotifiedAt = new Date().toISOString();
   await sessionRepository.save(issueNumber, state);
   sessionManager?.rememberState?.(issueNumber, state);
+  await appendSessionEvent(sessionEventRepository, issueNumber, {
+    type: "notice.pause_posted",
+    tick: state.tick,
+    status: state.status
+  });
   await postIssueComment(github, owner, repo, issueNumber, body);
 }

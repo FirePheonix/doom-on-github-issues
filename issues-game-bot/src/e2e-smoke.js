@@ -127,6 +127,24 @@ function createFakeSessionRepository() {
   };
 }
 
+function createFakeSessionEventRepository() {
+  const events = new Map();
+
+  return {
+    async append(issueNumber, event) {
+      const current = events.get(issueNumber) || [];
+      current.push(JSON.parse(JSON.stringify(event)));
+      events.set(issueNumber, current);
+    },
+    async list(issueNumber) {
+      return JSON.parse(JSON.stringify(events.get(issueNumber) || []));
+    },
+    async count(issueNumber) {
+      return (events.get(issueNumber) || []).length;
+    }
+  };
+}
+
 function sign(secret, payload) {
   const digest = createHmac("sha256", secret).update(payload).digest("hex");
   return `sha256=${digest}`;
@@ -164,6 +182,7 @@ async function postWebhook(baseUrl, secret, event, payload) {
 async function main() {
   const github = createFakeGithubClient();
   const sessionRepository = createFakeSessionRepository();
+  const sessionEventRepository = createFakeSessionEventRepository();
   const sessionManager = createFakeSessionManager();
   const config = {
     webhookSecret: "smoke-secret",
@@ -176,7 +195,7 @@ async function main() {
   process.env.GITHUB_REPO = "tetris-on-pdf";
   process.env.PUBLIC_BASE_URL = "http://127.0.0.1";
 
-  const app = createServer({ github, config, sessionRepository, sessionManager });
+  const app = createServer({ github, config, sessionRepository, sessionEventRepository, sessionManager });
   const server = app.listen(0);
   await new Promise((resolve) => server.once("listening", resolve));
 
@@ -254,6 +273,14 @@ async function main() {
       throw new Error(
         `Expected hot-session cache to avoid repository reads, got load=${sessionRepository.stats.load} loadOptional=${sessionRepository.stats.loadOptional}`
       );
+    }
+    const eventsResponse = await fetch(`${baseUrl}/debug/issues/${issueNumber}/events`);
+    const eventsPayload = await eventsResponse.json();
+    const eventTypes = eventsPayload.events.map((event) => event.type);
+    for (const requiredType of ["session.started", "command.applied", "issue.closed"]) {
+      if (!eventTypes.includes(requiredType)) {
+        throw new Error(`Missing expected event type: ${requiredType}`);
+      }
     }
 
     console.log("e2e-smoke ok");

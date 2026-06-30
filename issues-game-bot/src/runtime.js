@@ -4,7 +4,7 @@ import { ensureEngineAssets } from "./engine.js";
 import { createJobQueue } from "./jobs/queue.js";
 import { createLockStore } from "./jobs/locks.js";
 import { createJobStatusStore } from "./jobs/status.js";
-import { createSessionRepository } from "./persistence/index.js";
+import { createSessionEventRepository, createSessionRepository } from "./persistence/index.js";
 import { expireIssueSession } from "./sessions/lifecycle.js";
 import { createSessionManager } from "./sessions/manager.js";
 import { createIssueThrottle } from "./sessions/throttle.js";
@@ -14,6 +14,7 @@ export function createRuntimeServices({
   github = createGithubClient(),
   config = readRuntimeConfig(),
   sessionRepository = createSessionRepository(),
+  sessionEventRepository = createSessionEventRepository(),
   sessionManager = null,
   beforeJob = null
 } = {}) {
@@ -40,6 +41,7 @@ export function createRuntimeServices({
             issueNumber,
             sessionManager: managedSessionManager,
             sessionRepository,
+            sessionEventRepository,
             inactivityMs: config.inactivityMs
           });
         });
@@ -56,6 +58,7 @@ export function createRuntimeServices({
     jobQueue,
     throttle,
     sessionRepository,
+    sessionEventRepository,
     sessionManager: managedSessionManager
   };
 }

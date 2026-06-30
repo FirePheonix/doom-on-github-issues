@@ -16,6 +16,7 @@ export function createServer(options = {}) {
     jobQueue,
     throttle,
     sessionRepository,
+    sessionEventRepository,
     sessionManager
   } = createRuntimeServices(options);
 
@@ -27,7 +28,7 @@ export function createServer(options = {}) {
   }));
 
   app.use(createHealthRouter({ github }));
-  app.use(createDebugRouter({ jobStatusStore, sessionManager }));
+  app.use(createDebugRouter({ jobStatusStore, sessionManager, sessionEventRepository }));
   app.use(createFramesRouter());
   app.use(createWebhookRouter({
     github,
@@ -37,8 +38,21 @@ export function createServer(options = {}) {
     jobQueue,
     throttle,
     sessionRepository,
+    sessionEventRepository,
     sessionManager
   }));
+
+  app.locals.runtimeServices = {
+    projectRoot,
+    config,
+    lockStore,
+    jobStatusStore,
+    jobQueue,
+    throttle,
+    sessionRepository,
+    sessionEventRepository,
+    sessionManager
+  };
 
   return app;
 }

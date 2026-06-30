@@ -65,7 +65,7 @@ export function createServer(options = {}) {
     sessionFrameRepository,
     runtimeServices: app.locals.runtimeServices
   }));
-  app.use(createFramesRouter());
+  app.use(createFramesRouter({ projectRoot }));
   app.use(createWebhookRouter({
     github,
     projectRoot,

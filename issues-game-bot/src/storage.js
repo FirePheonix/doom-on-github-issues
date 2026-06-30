@@ -8,6 +8,7 @@ const eventsDir = path.join(dataDir, "events");
 const commandsDir = path.join(dataDir, "commands");
 const leasesDir = path.join(dataDir, "leases");
 const frameMetaDir = path.join(dataDir, "frame-meta");
+const cacheDir = path.join(dataDir, "cache");
 
 export function getSessionPath(issueNumber) {
   return path.join(sessionsDir, `${issueNumber}.json`);
@@ -33,6 +34,14 @@ export function getFrameMetaPath(issueNumber) {
   return path.join(frameMetaDir, `${issueNumber}.json`);
 }
 
+export function getBootFrameCachePath() {
+  return path.join(cacheDir, "boot-frame.png");
+}
+
+export function getBootFrameSessionPath() {
+  return path.join(cacheDir, "boot-frame-session.json");
+}
+
 export function getSessionsDir() {
   return sessionsDir;
 }
@@ -48,6 +57,7 @@ export async function ensureDataDir() {
   await mkdir(commandsDir, { recursive: true });
   await mkdir(leasesDir, { recursive: true });
   await mkdir(frameMetaDir, { recursive: true });
+  await mkdir(cacheDir, { recursive: true });
 }
 
 export async function saveFrame(issueNumber, pngBuffer) {

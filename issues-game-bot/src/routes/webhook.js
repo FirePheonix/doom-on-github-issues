@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { publishBootFrame } from "../bootFrame/cache.js";
 import { readGithubTarget } from "../config/env.js";
 import { getIssueNumber, isExpectedRepo, verifySignature } from "../github/webhooks.js";
 import {
@@ -105,7 +106,26 @@ async function handleIssueOpened({ github, owner, repo, payload, req, res, proje
   }
 
   const originalBody = payload.issue.body || "";
-  await updateIssueLoadingView(github, owner, repo, issueNumber, originalBody);
+  let loadingImageUrl = "";
+  try {
+    const published = await publishBootFrame({
+      projectRoot,
+      issueNumber,
+      frameStore,
+      sessionFrameRepository
+    });
+    if (published) {
+      loadingImageUrl = frameStore.publicUrl({
+        issueNumber,
+        tick: published.token,
+        req
+      });
+    }
+  } catch (error) {
+    console.error(`Failed to publish cached boot frame for issue ${issueNumber}`, error);
+  }
+
+  await updateIssueLoadingView(github, owner, repo, issueNumber, originalBody, loadingImageUrl);
 
   jobQueue.schedule(issueNumber, async () => {
     await lockStore.withIssueLock(issueNumber, async () => {

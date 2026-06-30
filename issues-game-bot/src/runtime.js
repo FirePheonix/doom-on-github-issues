@@ -1,4 +1,5 @@
 import os from "node:os";
+import { ensureBootFrameCache, isBootFrameCacheEnabled, isBootFramePrewarmEnabled } from "./bootFrame/cache.js";
 import { readGithubTarget, readRuntimeConfig } from "./config/env.js";
 import { createFrameStore } from "./frameStore/index.js";
 import { createGithubClient } from "./github/client.js";
@@ -43,7 +44,12 @@ export function createRuntimeServices({
     primed: false,
     restoredCount: 0,
     restoredIssueNumbers: [],
-    primeAt: null
+    primeAt: null,
+    bootFrame: {
+      enabled: isBootFrameCacheEnabled(),
+      prewarmed: false,
+      error: null
+    }
   };
   const repositoryInfo = {
     frameStoreKind: frameStore.kind,
@@ -52,6 +58,7 @@ export function createRuntimeServices({
     sessionCommandRepositoryKind: sessionCommandRepository.kind,
     sessionLeaseRepositoryKind: sessionLeaseRepository.kind,
     sessionFrameRepositoryKind: sessionFrameRepository.kind,
+    bootFrameCacheEnabled: isBootFrameCacheEnabled(),
     workerId
   };
 
@@ -85,6 +92,15 @@ export function createRuntimeServices({
   async function prime() {
     if (recovery.primed) {
       return recovery;
+    }
+
+    if (isBootFrameCacheEnabled() && isBootFramePrewarmEnabled()) {
+      try {
+        await ensureBootFrameCache(projectRoot);
+        recovery.bootFrame.prewarmed = true;
+      } catch (error) {
+        recovery.bootFrame.error = error instanceof Error ? error.message : String(error);
+      }
     }
 
     const activeStates = sessionRepository.listByStatus

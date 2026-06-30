@@ -1,4 +1,6 @@
 import { createHmac } from "node:crypto";
+import { writeFile } from "node:fs/promises";
+import { ensureDataDir, getBootFrameCachePath } from "./storage.js";
 import { createServer } from "./server.js";
 
 function createFakeGithubClient() {
@@ -145,6 +147,70 @@ function createFakeSessionEventRepository() {
   };
 }
 
+function createFakeSessionCommandRepository() {
+  const commands = new Map();
+
+  return {
+    async append(issueNumber, command) {
+      const current = commands.get(issueNumber) || [];
+      current.push(JSON.parse(JSON.stringify(command)));
+      commands.set(issueNumber, current);
+    },
+    async appendMany(issueNumber, items) {
+      const current = commands.get(issueNumber) || [];
+      current.push(...JSON.parse(JSON.stringify(items)));
+      commands.set(issueNumber, current);
+    },
+    async list(issueNumber) {
+      return JSON.parse(JSON.stringify(commands.get(issueNumber) || []));
+    },
+    async count(issueNumber) {
+      return (commands.get(issueNumber) || []).length;
+    }
+  };
+}
+
+function createFakeSessionLeaseRepository() {
+  const leases = new Map();
+
+  return {
+    async get(issueNumber) {
+      return JSON.parse(JSON.stringify(leases.get(issueNumber) || null));
+    },
+    async upsert(issueNumber, lease) {
+      leases.set(issueNumber, JSON.parse(JSON.stringify(lease)));
+    },
+    async remove(issueNumber) {
+      leases.delete(issueNumber);
+    },
+    async list() {
+      return Array.from(leases.values()).map((lease) => JSON.parse(JSON.stringify(lease)));
+    }
+  };
+}
+
+function createFakeSessionFrameRepository() {
+  const frames = new Map();
+
+  return {
+    async append(issueNumber, frame) {
+      const current = frames.get(issueNumber) || [];
+      current.push(JSON.parse(JSON.stringify(frame)));
+      frames.set(issueNumber, current);
+    },
+    async list(issueNumber) {
+      return JSON.parse(JSON.stringify(frames.get(issueNumber) || []));
+    },
+    async count(issueNumber) {
+      return (frames.get(issueNumber) || []).length;
+    },
+    async latest(issueNumber) {
+      const current = frames.get(issueNumber) || [];
+      return current.length > 0 ? JSON.parse(JSON.stringify(current[current.length - 1])) : null;
+    }
+  };
+}
+
 function createFakeFrameStore() {
   const published = [];
 
@@ -199,19 +265,39 @@ async function main() {
   const frameStore = createFakeFrameStore();
   const sessionRepository = createFakeSessionRepository();
   const sessionEventRepository = createFakeSessionEventRepository();
+  const sessionCommandRepository = createFakeSessionCommandRepository();
+  const sessionLeaseRepository = createFakeSessionLeaseRepository();
+  const sessionFrameRepository = createFakeSessionFrameRepository();
   const sessionManager = createFakeSessionManager();
   const config = {
     webhookSecret: "smoke-secret",
     issueCooldownMs: 0,
-    bootDelayMs: 0,
+    bootDelayMs: 50,
     inactivityMs: 300000
   };
 
   process.env.GITHUB_OWNER = "FirePheonix";
   process.env.GITHUB_REPO = "tetris-on-pdf";
   process.env.PUBLIC_BASE_URL = "http://127.0.0.1";
+  process.env.DOOM_BOOT_FRAME_CACHE = "true";
+  process.env.DOOM_BOOT_FRAME_PREWARM = "false";
+  await ensureDataDir();
+  await writeFile(
+    getBootFrameCachePath(),
+    Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMB/axl7WQAAAAASUVORK5CYII=", "base64")
+  );
 
-  const app = createServer({ github, config, frameStore, sessionRepository, sessionEventRepository, sessionManager });
+  const app = createServer({
+    github,
+    config,
+    frameStore,
+    sessionRepository,
+    sessionEventRepository,
+    sessionCommandRepository,
+    sessionLeaseRepository,
+    sessionFrameRepository,
+    sessionManager
+  });
   const server = app.listen(0);
   await new Promise((resolve) => server.once("listening", resolve));
 
@@ -232,6 +318,11 @@ async function main() {
         body: "Smoke body",
         state: "open"
       }
+    });
+
+    await waitFor(() => {
+      const body = github.issueBodies.get(issueNumber) || "";
+      return body.includes("- status: loading") && body.includes("![doom-frame]") && body.includes("cached boot frame");
     });
 
     await waitFor(() => {
@@ -293,6 +384,9 @@ async function main() {
     if (frameStore.published.length < 2) {
       throw new Error(`Expected frame store publish calls, got ${frameStore.published.length}`);
     }
+    if (!String(frameStore.published[0]?.tick || "").startsWith("boot-")) {
+      throw new Error(`Expected cached boot frame publish first, got tick=${frameStore.published[0]?.tick}`);
+    }
     const eventsResponse = await fetch(`${baseUrl}/debug/issues/${issueNumber}/events`);
     const eventsPayload = await eventsResponse.json();
     const eventTypes = eventsPayload.events.map((event) => event.type);
@@ -305,6 +399,11 @@ async function main() {
     const runtimePayload = await runtimeResponse.json();
     if (runtimePayload.repositoryInfo.frameStoreKind !== "fake") {
       throw new Error(`Expected fake frame store kind, got ${runtimePayload.repositoryInfo.frameStoreKind}`);
+    }
+    const commandsResponse = await fetch(`${baseUrl}/debug/issues/${issueNumber}/commands`);
+    const commandsPayload = await commandsResponse.json();
+    if (commandsPayload.commands.length === 0) {
+      throw new Error("Expected command journal entries");
     }
 
     console.log("e2e-smoke ok");

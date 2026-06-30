@@ -5,3 +5,4 @@
 - [persistence.md](./persistence.md)
 - [deployment.md](./deployment.md)
 - [recovery.md](./recovery.md)
+- [operations.md](./operations.md)

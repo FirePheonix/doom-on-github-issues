@@ -58,12 +58,18 @@ npm start
 npm run render:smoke
 npm run e2e:smoke
 npm run recovery:smoke
+npm run repository-mode:smoke
+```
+6. If using Postgres, run migrations:
+```bash
+npm run db:migrate
 ```
 
 ## Session persistence
 
-- Default repository: `file`
-- Optional scaffold: `postgres`
+- Default repository mode:
+  - `postgres` when `DATABASE_URL` is present
+  - otherwise `file`
 - Env:
   - `SESSION_REPOSITORY=file|postgres`
   - `DATABASE_URL=...` when using Postgres
@@ -73,8 +79,7 @@ npm run recovery:smoke
 
 ## Session event journal
 
-- Default event repository: `file`
-- Optional scaffold: `postgres`
+- Default event repository mode follows session repository mode unless explicitly overridden
 - Env:
   - `SESSION_EVENT_REPOSITORY=file|postgres`
   - `SESSION_EVENT_REPOSITORY_SCHEMA=public`
@@ -113,6 +118,7 @@ Required vars:
 - Active sessions prefer in-memory state first, then repository fallback, to reduce per-command latency.
 - Runtime boot now restores active sessions from the repository and re-arms inactivity timers.
 - Session transitions are recorded in an append-only event journal for debugging and future replay.
+- `/health` now includes runtime repository mode and DB-backed health when available.
 - Closing a GitHub issue freezes that session as an issue-state action.
 - Inactive games exit after 5 minutes by default via the session manager timer; the GitHub issue remains open and `restart` starts a new run.
 - Sessions: `data/sessions/<issue>.json`

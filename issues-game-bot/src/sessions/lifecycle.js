@@ -21,9 +21,8 @@ export async function startIssueSession({ github, owner, repo, issueNumber, orig
 
 export async function closeIssueSession({ github, owner, repo, issueNumber, sessionRepository, sessionManager }) {
   await ensureDataDir();
-  if (!(await sessionRepository.exists(issueNumber))) return;
-
-  const state = await sessionRepository.load(issueNumber);
+  const state = await sessionRepository.loadOptional(issueNumber);
+  if (!state) return;
   state.issueState = "closed";
   state.status = "closed";
   state.log = ["Issue closed. Session frozen. Reopen issue or comment `restart` to start fresh."];
@@ -41,9 +40,8 @@ export async function closeIssueSession({ github, owner, repo, issueNumber, sess
 
 export async function reopenIssueSession({ github, owner, repo, issueNumber, sessionRepository }) {
   await ensureDataDir();
-  if (!(await sessionRepository.exists(issueNumber))) return;
-
-  const state = await sessionRepository.load(issueNumber);
+  const state = await sessionRepository.loadOptional(issueNumber);
+  if (!state) return;
   state.issueState = "open";
   if (state.status === "closed") {
     state.status = "active";
@@ -69,12 +67,7 @@ export async function applyIssueCommentCommand({
 }) {
   await ensureDataDir();
 
-  let state;
-  if (await sessionRepository.exists(issueNumber)) {
-    state = await sessionRepository.load(issueNumber);
-  } else {
-    state = createSession(issueNumber);
-  }
+  const state = await sessionRepository.loadOptional(issueNumber) || createSession(issueNumber);
 
   const command = normalizeCommand(commentBody);
   state.issueState = issueState || state.issueState || "open";
@@ -142,9 +135,8 @@ export async function applyIssueCommentCommand({
 
 export async function expireIssueSession({ github, owner, repo, issueNumber, sessionRepository, sessionManager, inactivityMs }) {
   await ensureDataDir();
-  if (!(await sessionRepository.exists(issueNumber))) return;
-
-  const state = await sessionRepository.load(issueNumber);
+  const state = await sessionRepository.loadOptional(issueNumber);
+  if (!state) return;
   if (state.status !== "active") {
     await sessionManager?.setStatus?.(issueNumber, state.status);
     return;

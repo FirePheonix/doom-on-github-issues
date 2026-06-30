@@ -92,6 +92,12 @@ function createFakeSessionRepository() {
     },
     async exists(issueNumber) {
       return sessions.has(issueNumber);
+    },
+    async loadOptional(issueNumber) {
+      if (!sessions.has(issueNumber)) {
+        return null;
+      }
+      return JSON.parse(JSON.stringify(sessions.get(issueNumber)));
     }
   };
 }

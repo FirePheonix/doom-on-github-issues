@@ -44,6 +44,16 @@ export function createPostgresSessionRepository({
     return result.rows[0].session_json;
   }
 
+  async function loadOptional(issueNumber) {
+    const pool = await getPool();
+    const query = `select session_json from ${safeSchema}.${safeTable} where issue_number = $1`;
+    const result = await pool.query(query, [issueNumber]);
+    if (result.rowCount === 0) {
+      return null;
+    }
+    return result.rows[0].session_json;
+  }
+
   async function save(issueNumber, state) {
     const pool = await getPool();
     const query = `
@@ -65,6 +75,7 @@ export function createPostgresSessionRepository({
   return {
     kind: "postgres",
     load,
+    loadOptional,
     save,
     exists
   };

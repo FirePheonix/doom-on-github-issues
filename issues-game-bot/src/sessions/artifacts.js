@@ -5,7 +5,7 @@ export async function persistSessionArtifacts({
   projectRoot,
   issueNumber,
   state,
-  engine = null,
+  sessionManager = null,
   mode = "step",
   appliedCommands = []
 }) {
@@ -15,30 +15,33 @@ export async function persistSessionArtifacts({
   const framePath = getFramePath(issueNumber);
 
   try {
-    if (!engine) {
+    if (!sessionManager) {
       await renderEngineFrame(projectRoot, sessionPath, framePath);
       return;
     }
 
     if (mode === "start") {
-      await engine.startSession(issueNumber, state.seed, framePath);
+      await sessionManager.startSession(issueNumber, state.seed, framePath);
       return;
     }
 
     if (mode === "restart") {
-      await engine.restartSession(issueNumber, state.seed, framePath);
+      await sessionManager.restartSession(issueNumber, state.seed, framePath);
       return;
     }
 
     if (mode === "step" && appliedCommands.length > 0) {
       const prefixLen = Math.max(0, state.history.length - appliedCommands.length);
       const historyPrefix = state.history.slice(0, prefixLen);
-      await engine.applyCommands(issueNumber, state.seed, framePath, historyPrefix, appliedCommands);
+      await sessionManager.applyCommands(issueNumber, state.seed, framePath, historyPrefix, appliedCommands);
+      return;
     }
+
+    sessionManager.setStatus(issueNumber, state.status);
   } catch (error) {
     console.error(`Persistent engine path failed for issue ${issueNumber}; falling back to replay renderer`, error);
-    if (engine?.invalidate) {
-      await engine.invalidate(issueNumber);
+    if (sessionManager?.invalidate) {
+      await sessionManager.invalidate(issueNumber);
     }
     await renderEngineFrame(projectRoot, sessionPath, framePath);
   }

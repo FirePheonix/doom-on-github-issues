@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "render:smoke": "node src/smoke.js"
+    "render:smoke": "node src/smoke.js",
+    "e2e:smoke": "node src/e2e-smoke.js"
   },
   "dependencies": {
     "@octokit/rest": "^22.0.0",

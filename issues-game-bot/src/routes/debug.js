@@ -1,6 +1,6 @@
 import { Router } from "express";
 
-export function createDebugRouter({ jobStatusStore }) {
+export function createDebugRouter({ jobStatusStore, sessionManager }) {
   const router = Router();
 
   router.get("/debug/issues/:issueNumber", (req, res) => {
@@ -10,9 +10,20 @@ export function createDebugRouter({ jobStatusStore }) {
       return;
     }
 
-    res.json({ ok: true, issueNumber, status: jobStatusStore.get(issueNumber) });
+    res.json({
+      ok: true,
+      issueNumber,
+      status: jobStatusStore.get(issueNumber),
+      session: sessionManager?.get(issueNumber) || { state: "unknown" }
+    });
+  });
+
+  router.get("/debug/sessions", (_req, res) => {
+    res.json({
+      ok: true,
+      sessions: sessionManager?.list() || []
+    });
   });
 
   return router;
 }
-

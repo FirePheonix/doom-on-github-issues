@@ -16,7 +16,7 @@ export function createWebhookRouter({
   lockStore,
   jobQueue,
   throttle,
-  engine
+  sessionManager
 }) {
   const router = Router();
 
@@ -44,12 +44,12 @@ export function createWebhookRouter({
       }
 
       if (event === "issues" && payload?.action === "opened") {
-        await handleIssueOpened({ github, owner, repo, payload, req, res, projectRoot, lockStore, jobQueue, config, engine });
+        await handleIssueOpened({ github, owner, repo, payload, req, res, projectRoot, lockStore, jobQueue, config, sessionManager });
         return;
       }
 
       if (event === "issues" && payload?.action === "closed") {
-        await handleIssueClosed({ github, owner, repo, payload, res, lockStore, jobQueue, engine });
+        await handleIssueClosed({ github, owner, repo, payload, res, lockStore, jobQueue, sessionManager });
         return;
       }
 
@@ -71,7 +71,7 @@ export function createWebhookRouter({
           jobQueue,
           throttle,
           config,
-          engine
+          sessionManager
         });
         return;
       }
@@ -85,7 +85,7 @@ export function createWebhookRouter({
   return router;
 }
 
-async function handleIssueOpened({ github, owner, repo, payload, req, res, projectRoot, lockStore, jobQueue, config, engine }) {
+async function handleIssueOpened({ github, owner, repo, payload, req, res, projectRoot, lockStore, jobQueue, config, sessionManager }) {
   const issueNumber = getIssueNumber(payload);
   if (!issueNumber) {
     res.status(200).json({ ok: true, ignored: "missing_issue_number" });
@@ -97,14 +97,14 @@ async function handleIssueOpened({ github, owner, repo, payload, req, res, proje
 
   jobQueue.schedule(issueNumber, async () => {
     await lockStore.withIssueLock(issueNumber, async () => {
-      await startIssueSession({ github, owner, repo, issueNumber, originalBody, req, projectRoot, engine });
+      await startIssueSession({ github, owner, repo, issueNumber, originalBody, req, projectRoot, sessionManager });
     });
   }, config.bootDelayMs);
 
   res.status(202).json({ ok: true, accepted: "issues.opened", issueNumber });
 }
 
-async function handleIssueClosed({ github, owner, repo, payload, res, lockStore, jobQueue, engine }) {
+async function handleIssueClosed({ github, owner, repo, payload, res, lockStore, jobQueue, sessionManager }) {
   const issueNumber = getIssueNumber(payload);
   if (!issueNumber) {
     res.status(200).json({ ok: true, ignored: "missing_issue_number" });
@@ -113,7 +113,7 @@ async function handleIssueClosed({ github, owner, repo, payload, res, lockStore,
 
   jobQueue.schedule(issueNumber, async () => {
     await lockStore.withIssueLock(issueNumber, async () => {
-      await closeIssueSession({ github, owner, repo, issueNumber, engine });
+      await closeIssueSession({ github, owner, repo, issueNumber, sessionManager });
     });
   });
 
@@ -148,7 +148,7 @@ async function handleIssueComment({
   jobQueue,
   throttle,
   config,
-  engine
+  sessionManager
 }) {
   const issueNumber = getIssueNumber(payload);
   if (!issueNumber) {
@@ -185,7 +185,7 @@ async function handleIssueComment({
         req,
         projectRoot,
         inactivityMs: config.inactivityMs,
-        engine
+        sessionManager
       });
     });
   });

@@ -1,11 +1,11 @@
 import { createSession, normalizeCommand, stepSession } from "../game.js";
-import { postIssueComment } from "../github/issues.js";
+import { getIssueBody, inferBaseUrlFromEnv, postIssueComment } from "../github/issues.js";
 import { ensureDataDir, hasSession, loadSession, saveSession } from "../storage.js";
 import { updateIssueGameView } from "../views/gameView.js";
 import { isSessionInactive } from "./inactivity.js";
 import { persistSessionArtifacts } from "./artifacts.js";
 
-export async function startIssueSession({ github, owner, repo, issueNumber, originalBody, req, projectRoot, engine }) {
+export async function startIssueSession({ github, owner, repo, issueNumber, originalBody, req, projectRoot, sessionManager }) {
   await ensureDataDir();
   const state = createSession(issueNumber);
   await persistSessionArtifacts({
@@ -13,12 +13,12 @@ export async function startIssueSession({ github, owner, repo, issueNumber, orig
     issueNumber,
     state,
     mode: "start",
-    engine
+    sessionManager
   });
   await updateIssueGameView(github, owner, repo, issueNumber, originalBody, req, state);
 }
 
-export async function closeIssueSession({ github, owner, repo, issueNumber, engine }) {
+export async function closeIssueSession({ github, owner, repo, issueNumber, sessionManager }) {
   await ensureDataDir();
   if (!(await hasSession(issueNumber))) return;
 
@@ -27,7 +27,7 @@ export async function closeIssueSession({ github, owner, repo, issueNumber, engi
   state.status = "closed";
   state.log = ["Issue closed. Session frozen. Reopen issue or comment `restart` to start fresh."];
   await saveSession(issueNumber, state);
-  await engine?.stopSession?.(issueNumber);
+  await sessionManager?.stopSession?.(issueNumber, "closed");
 
   await postIssueComment(
     github,
@@ -63,7 +63,7 @@ export async function applyIssueCommentCommand({
   req,
   projectRoot,
   inactivityMs,
-  engine
+  sessionManager
 }) {
   await ensureDataDir();
 
@@ -82,7 +82,7 @@ export async function applyIssueCommentCommand({
     state.inactivityNotifiedAt = new Date().toISOString();
     state.log = [`Game exited after ${Math.floor(inactivityMs / 60000)} minutes of inactivity.`];
     await saveSession(issueNumber, state);
-    await engine?.stopSession?.(issueNumber);
+    await sessionManager?.stopSession?.(issueNumber, "inactive");
     await postPauseNoticeOnce({
       github,
       owner,
@@ -120,18 +120,50 @@ export async function applyIssueCommentCommand({
 
   const transition = stepSession(state, commentBody);
   if (state.status === "exited") {
-    await engine?.stopSession?.(issueNumber);
+    await sessionManager?.stopSession?.(issueNumber, "exited");
   }
   const mode = transition.restarted ? "restart" : "step";
   await persistSessionArtifacts({
     projectRoot,
     issueNumber,
     state,
-    engine,
+    sessionManager,
     mode,
     appliedCommands: transition.appliedCommands
   });
   await updateIssueGameView(github, owner, repo, issueNumber, originalBody, req, state);
+}
+
+export async function expireIssueSession({ github, owner, repo, issueNumber, sessionManager, inactivityMs }) {
+  await ensureDataDir();
+  if (!(await hasSession(issueNumber))) return;
+
+  const state = await loadSession(issueNumber);
+  if (state.status !== "active") {
+    await sessionManager?.setStatus?.(issueNumber, state.status);
+    return;
+  }
+
+  state.status = "exited";
+  state.inactivityNotifiedAt = new Date().toISOString();
+  const minutes = Math.max(1, Math.floor(inactivityMs / 60000));
+  state.log = [`Game exited after ${minutes} minutes of inactivity.`];
+  await saveSession(issueNumber, state);
+  await sessionManager?.stopSession?.(issueNumber, "inactive");
+  try {
+    const issueBody = await getIssueBody(github, owner, repo, issueNumber);
+    await updateIssueGameView(github, owner, repo, issueNumber, issueBody, null, state, inferBaseUrlFromEnv());
+  } catch (error) {
+    console.error(`Failed to refresh issue body after inactivity for issue ${issueNumber}`, error);
+  }
+  await postPauseNoticeOnce({
+    github,
+    owner,
+    repo,
+    issueNumber,
+    state,
+    body: `Game exited after inactivity (>${minutes} minutes). The GitHub issue stays open. Comment \`restart\` to start a new run.`
+  });
 }
 
 async function postPauseNoticeOnce({ github, owner, repo, issueNumber, state, body }) {

@@ -1,29 +1,22 @@
 import express from "express";
-import { readRuntimeConfig } from "./config/env.js";
-import { createGithubClient } from "./github/client.js";
-import { createJobQueue } from "./jobs/queue.js";
-import { createLockStore } from "./jobs/locks.js";
-import { createJobStatusStore } from "./jobs/status.js";
-import { createIssueThrottle } from "./sessions/throttle.js";
-import { createPersistentEngine, ensureEngineAssets } from "./engine.js";
 import { createDebugRouter } from "./routes/debug.js";
 import { createFramesRouter } from "./routes/frames.js";
 import { createHealthRouter } from "./routes/health.js";
 import { createWebhookRouter } from "./routes/webhook.js";
+import { createRuntimeServices } from "./runtime.js";
 
-export function createServer() {
-  const projectRoot = process.cwd();
+export function createServer(options = {}) {
   const app = express();
-  const github = createGithubClient();
-  const config = readRuntimeConfig();
-  const engine = createPersistentEngine(projectRoot);
-  const lockStore = createLockStore();
-  const jobStatusStore = createJobStatusStore();
-  const jobQueue = createJobQueue({
-    statusStore: jobStatusStore,
-    beforeJob: () => ensureEngineAssets(projectRoot)
-  });
-  const throttle = createIssueThrottle(config.issueCooldownMs);
+  const {
+    github,
+    projectRoot,
+    config,
+    lockStore,
+    jobStatusStore,
+    jobQueue,
+    throttle,
+    sessionManager
+  } = createRuntimeServices(options);
 
   app.use(express.json({
     limit: "1mb",
@@ -33,7 +26,7 @@ export function createServer() {
   }));
 
   app.use(createHealthRouter({ github }));
-  app.use(createDebugRouter({ jobStatusStore }));
+  app.use(createDebugRouter({ jobStatusStore, sessionManager }));
   app.use(createFramesRouter());
   app.use(createWebhookRouter({
     github,
@@ -42,7 +35,7 @@ export function createServer() {
     lockStore,
     jobQueue,
     throttle,
-    engine
+    sessionManager
   }));
 
   return app;

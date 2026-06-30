@@ -13,6 +13,7 @@ Turn-based Doom sessions driven by GitHub Issues/comments, rendered through a Do
 ## Code layout
 - `src/server.js`: app composition and dependency wiring only.
 - `src/runtime.js`: runtime service composition for server boot and smoke tests.
+- `src/persistence/`: session repository adapters (`file` default, `postgres` scaffold).
 - `src/routes/`: HTTP endpoints (`/webhook`, `/frames`, `/health`, `/debug`).
 - `src/github/`: GitHub client, webhook validation, issue update/comment helpers.
 - `src/jobs/`: async webhook job queue, per-issue locks, debug status.
@@ -56,6 +57,17 @@ npm start
 npm run render:smoke
 npm run e2e:smoke
 ```
+
+## Session persistence
+
+- Default repository: `file`
+- Optional scaffold: `postgres`
+- Env:
+  - `SESSION_REPOSITORY=file|postgres`
+  - `DATABASE_URL=...` when using Postgres
+  - `SESSION_REPOSITORY_SCHEMA=public`
+  - `SESSION_REPOSITORY_TABLE=issue_sessions`
+- Initial schema file: `sql/001_issue_sessions.sql`
 
 ## Railway deploy
 Use Docker deploy for this service (`issues-game-bot/Dockerfile`) so Node and Python/ViZDoom are always installed together.

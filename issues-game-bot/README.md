@@ -13,7 +13,7 @@ Turn-based Doom sessions driven by GitHub Issues/comments, rendered through a Do
 ## Code layout
 - `src/server.js`: app composition and dependency wiring only.
 - `src/runtime.js`: runtime service composition for server boot and smoke tests.
-- `src/persistence/`: session repository adapters (`file` default, `postgres` scaffold).
+- `src/persistence/`: session snapshot, event journal, command journal, lease, and frame metadata adapters.
 - `src/frameStore/`: frame publishing adapters (`local` default, `s3` when configured).
 - `src/routes/`: HTTP endpoints (`/webhook`, `/frames`, `/health`, `/debug`).
 - `src/github/`: GitHub client, webhook validation, issue update/comment helpers.
@@ -22,7 +22,7 @@ Turn-based Doom sessions driven by GitHub Issues/comments, rendered through a Do
 - `src/views/`: GitHub issue markdown rendering for loading/game screens.
 - `src/renderer/`: frame URL/render-adapter helpers.
 - `scripts/`: Python/C Doom renderer pipeline.
-- `sql/`: Postgres schema scaffolds for sessions and event journal.
+- `sql/`: Postgres schema scaffolds for snapshots, events, commands, leases, and frames.
 
 ## Commands
 - `w`: move forward
@@ -103,6 +103,22 @@ npm run db:migrate
   - `SESSION_EVENT_REPOSITORY_TABLE=issue_session_events`
 - Initial schema file: `sql/002_issue_session_events.sql`
 
+## Operational persistence
+
+- Command journal:
+  - `SESSION_COMMAND_REPOSITORY=file|postgres`
+  - `SESSION_COMMAND_REPOSITORY_SCHEMA=public`
+  - `SESSION_COMMAND_REPOSITORY_TABLE=issue_session_commands`
+- Session leases:
+  - `SESSION_LEASE_REPOSITORY=file|postgres`
+  - `SESSION_LEASE_REPOSITORY_SCHEMA=public`
+  - `SESSION_LEASE_REPOSITORY_TABLE=issue_session_leases`
+- Frame metadata:
+  - `SESSION_FRAME_REPOSITORY=file|postgres`
+  - `SESSION_FRAME_REPOSITORY_SCHEMA=public`
+  - `SESSION_FRAME_REPOSITORY_TABLE=issue_session_frames`
+- Initial schema file: `sql/003_issue_session_operations.sql`
+
 ## Railway deploy
 Use Docker deploy for this service (`issues-game-bot/Dockerfile`) so Node and Python/ViZDoom are always installed together.
 
@@ -112,6 +128,12 @@ Required vars:
 - `GITHUB_REPO`
 - `GITHUB_WEBHOOK_SECRET`
 - `PUBLIC_BASE_URL=https://<your-railway-domain>`
+- `DATABASE_URL=postgres://...`
+- `FRAME_S3_BUCKET=...`
+- `FRAME_S3_REGION=us-east-1`
+- `FRAME_S3_PUBLIC_BASE_URL=https://...`
+- `AWS_ACCESS_KEY_ID=...`
+- `AWS_SECRET_ACCESS_KEY=...`
 - Optional: `PYTHON_BIN=python3`, `DOOM_TICS_PER_COMMENT=5`
 - Optional: `DOOM_BOOT_DELAY_MS=500` (lower values improve first-frame delivery speed)
 - Optional: `DOOM_MODE=demons|classic` (default `demons`; use `classic` to attempt IWAD startup path)
@@ -136,9 +158,14 @@ Required vars:
 - Runtime boot now restores active sessions from the repository and re-arms inactivity timers.
 - Frame publishing now supports local disk or S3-backed public objects.
 - Session transitions are recorded in an append-only event journal for debugging and future replay.
+- Applied commands, session leases, and published frame metadata now have dedicated operational repositories instead of living only inside `session_json`.
 - `/health` now includes runtime repository mode and DB-backed health when available.
+- `/debug/issues/:id`, `/debug/issues/:id/events`, `/debug/issues/:id/commands`, `/debug/issues/:id/frames`, and `/debug/leases` expose the live/runtime operational view.
 - Closing a GitHub issue freezes that session as an issue-state action.
 - Inactive games exit after 5 minutes by default via the session manager timer; the GitHub issue remains open and `restart` starts a new run.
 - Sessions: `data/sessions/<issue>.json`
 - Frames: `data/frames/<issue>.png`
 - Events: `data/events/<issue>.json`
+- Commands: `data/commands/<issue>.json`
+- Leases: `data/leases/<issue>.json`
+- Frame metadata: `data/frame-meta/<issue>.json`

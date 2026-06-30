@@ -8,6 +8,7 @@ Turn-based Doom sessions driven by GitHub Issues/comments, rendered through a Do
 - Node webhook handler stores session state/history.
 - Session manager owns one live runtime per active issue and enforces inactivity expiry.
 - Python worker pipeline uses a persistent Doom session worker first, with replay fallback when needed.
+- A cached boot frame is published immediately on issue open so users see an image before the live session finishes booting.
 - Issue body embeds `/frames/<issue>.png` so each action updates graphics.
 
 ## Code layout
@@ -139,6 +140,9 @@ Required vars:
 - Optional: `DOOM_MODE=demons|classic` (default `demons`; use `classic` to attempt IWAD startup path)
 - Optional: `DOOM_ENGINE=doomgeneric|vizdoom` (default `doomgeneric`, falls back to vizdoom if startup fails)
 - Optional: `DOOM_INACTIVITY_MS=300000` (session manager exits the game after 5 minutes of inactivity)
+- Optional boot-frame latency controls:
+  - `DOOM_BOOT_FRAME_CACHE=true` (publish a cached placeholder frame immediately on issue open)
+  - `DOOM_BOOT_FRAME_PREWARM=true` (generate the cached boot frame during startup instead of first traffic)
 - Optional render-performance controls:
   - `DOOM_FRAME_SCALE=0.8` (downscale output frame for faster transfer/render)
   - `DOOM_PNG_COMPRESS_LEVEL=3`
@@ -157,6 +161,7 @@ Required vars:
 - Active sessions prefer in-memory state first, then repository fallback, to reduce per-command latency.
 - Runtime boot now restores active sessions from the repository and re-arms inactivity timers.
 - Frame publishing now supports local disk or S3-backed public objects.
+- Issue-open now publishes a cached boot frame immediately, then swaps to the real first frame once the live session is ready.
 - Session transitions are recorded in an append-only event journal for debugging and future replay.
 - Applied commands, session leases, and published frame metadata now have dedicated operational repositories instead of living only inside `session_json`.
 - `/health` now includes runtime repository mode and DB-backed health when available.

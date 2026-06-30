@@ -15,6 +15,13 @@ function inferPublicBaseUrl({ bucket, region, publicBaseUrl }) {
   return `https://${bucket}.s3.${region}.amazonaws.com`;
 }
 
+function normalizeTick(tick) {
+  if (tick === null || tick === undefined) {
+    return "latest";
+  }
+  return String(tick).replace(/[^A-Za-z0-9._-]/g, "-");
+}
+
 export function createS3FrameStore({
   bucket = process.env.S3_BUCKET_NAME || process.env.FRAME_S3_BUCKET,
   region = process.env.FRAME_S3_REGION || process.env.AWS_REGION || "us-east-1",
@@ -38,15 +45,17 @@ export function createS3FrameStore({
     ...(forcePathStyle ? { forcePathStyle: true } : {})
   });
 
-  function objectKey(issueNumber) {
-    return safePrefix ? `${safePrefix}/${issueNumber}.png` : `${issueNumber}.png`;
+  function objectKey(issueNumber, tick) {
+    const filename = `${normalizeTick(tick)}.png`;
+    const base = safePrefix ? `${safePrefix}/${issueNumber}` : `${issueNumber}`;
+    return `${base}/${filename}`;
   }
 
-  async function publish(issueNumber, _tick, localPath) {
+  async function publish(issueNumber, tick, localPath) {
     const body = await readFile(localPath);
     await client.send(new PutObjectCommand({
       Bucket: safeBucket,
-      Key: objectKey(issueNumber),
+      Key: objectKey(issueNumber, tick),
       Body: body,
       ContentType: "image/png",
       CacheControl: "no-store, no-cache, must-revalidate, max-age=0"
@@ -54,7 +63,7 @@ export function createS3FrameStore({
   }
 
   function publicUrl({ issueNumber, tick }) {
-    return `${baseUrl}/${objectKey(issueNumber)}?t=${tick}`;
+    return `${baseUrl}/${objectKey(issueNumber, tick)}`;
   }
 
   async function healthCheck() {

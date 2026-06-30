@@ -48,5 +48,9 @@ sequenceDiagram
   - enables the feature
 - `DOOM_BOOT_FRAME_PREWARM=true`
   - avoids first-traffic boot-frame generation cost
+- remote object stores publish tick-versioned frame keys
+  - boot frame example: `.../<issue>/boot-123.png`
+  - live frame example: `.../<issue>/3.png`
+  - this avoids stale image reuse on loading and the first few actions
 - the cached frame improves perceived speed
 - the real frame still depends on worker boot, render, publish, and GitHub update latency

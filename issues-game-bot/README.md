@@ -200,6 +200,7 @@ Required vars:
 - Active sessions prefer in-memory state first, then repository fallback, to reduce per-command latency.
 - Runtime boot now restores active sessions from the repository and re-arms inactivity timers.
 - Frame publishing now supports local disk or S3-backed public objects.
+- Remote frame objects are now written to tick-versioned keys, which avoids stale loading and early-action images caused by overwriting the same object path.
 - Issue-open now publishes a cached boot frame immediately, then swaps to the real first frame once the live session is ready.
 - Session transitions are recorded in an append-only event journal for debugging and future replay.
 - Applied commands, session leases, and published frame metadata now have dedicated operational repositories instead of living only inside `session_json`.

@@ -1,4 +1,4 @@
-import { getDefaultFrameStoreKind } from "./frameStore/index.js";
+import { createS3FrameStore, getDefaultFrameStoreKind } from "./frameStore/index.js";
 
 function main() {
   const originalFrameStore = process.env.FRAME_STORE;
@@ -22,6 +22,20 @@ function main() {
     process.env.FRAME_STORE = "local";
     if (getDefaultFrameStoreKind() !== "local") {
       throw new Error("Expected explicit FRAME_STORE override to win");
+    }
+
+    const store = createS3FrameStore({
+      bucket: "demo-bucket",
+      region: "eu-north-1",
+      prefix: "vedaai"
+    });
+    const bootUrl = store.publicUrl({ issueNumber: 24, tick: "boot-123" });
+    const liveUrl = store.publicUrl({ issueNumber: 24, tick: 3 });
+    if (!bootUrl.endsWith("/vedaai/24/boot-123.png")) {
+      throw new Error(`Expected versioned boot frame URL, got ${bootUrl}`);
+    }
+    if (!liveUrl.endsWith("/vedaai/24/3.png")) {
+      throw new Error(`Expected versioned live frame URL, got ${liveUrl}`);
     }
 
     console.log("frame-store-smoke ok");

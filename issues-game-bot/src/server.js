@@ -15,9 +15,11 @@ export function createServer(options = {}) {
     jobStatusStore,
     jobQueue,
     throttle,
+    frameStore,
     sessionRepository,
     sessionEventRepository,
     sessionManager,
+    repositoryInfo,
     prime,
     recovery
   } = createRuntimeServices(options);
@@ -29,9 +31,11 @@ export function createServer(options = {}) {
     jobStatusStore,
     jobQueue,
     throttle,
+    frameStore,
     sessionRepository,
     sessionEventRepository,
     sessionManager,
+    repositoryInfo,
     prime,
     recovery
   };
@@ -58,6 +62,7 @@ export function createServer(options = {}) {
     lockStore,
     jobQueue,
     throttle,
+    frameStore,
     sessionRepository,
     sessionEventRepository,
     sessionManager

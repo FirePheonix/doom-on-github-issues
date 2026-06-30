@@ -19,13 +19,14 @@ async function appendSessionEvent(sessionEventRepository, issueNumber, event) {
   });
 }
 
-export async function startIssueSession({ github, owner, repo, issueNumber, originalBody, req, projectRoot, sessionRepository, sessionEventRepository, sessionManager }) {
+export async function startIssueSession({ github, owner, repo, issueNumber, originalBody, req, projectRoot, frameStore, sessionRepository, sessionEventRepository, sessionManager }) {
   await ensureDataDir();
   const state = createSession(issueNumber);
   await persistSessionArtifacts({
     projectRoot,
     issueNumber,
     state,
+    frameStore,
     sessionRepository,
     mode: "start",
     sessionManager
@@ -35,7 +36,7 @@ export async function startIssueSession({ github, owner, repo, issueNumber, orig
     tick: state.tick,
     status: state.status
   });
-  await updateIssueGameView(github, owner, repo, issueNumber, originalBody, req, state);
+  await updateIssueGameView(github, owner, repo, issueNumber, originalBody, req, state, frameStore);
 }
 
 export async function closeIssueSession({ github, owner, repo, issueNumber, sessionRepository, sessionEventRepository, sessionManager }) {
@@ -91,6 +92,7 @@ export async function applyIssueCommentCommand({
   req,
   projectRoot,
   inactivityMs,
+  frameStore,
   sessionRepository,
   sessionEventRepository,
   sessionManager
@@ -193,15 +195,16 @@ export async function applyIssueCommentCommand({
     projectRoot,
     issueNumber,
     state,
+    frameStore,
     sessionRepository,
     sessionManager,
     mode,
     appliedCommands: transition.appliedCommands
   });
-  await updateIssueGameView(github, owner, repo, issueNumber, originalBody, req, state);
+  await updateIssueGameView(github, owner, repo, issueNumber, originalBody, req, state, frameStore);
 }
 
-export async function expireIssueSession({ github, owner, repo, issueNumber, sessionRepository, sessionEventRepository, sessionManager, inactivityMs }) {
+export async function expireIssueSession({ github, owner, repo, issueNumber, frameStore, sessionRepository, sessionEventRepository, sessionManager, inactivityMs }) {
   await ensureDataDir();
   const state = sessionManager?.getState?.(issueNumber) || await sessionRepository.loadOptional(issueNumber);
   if (!state) return;
@@ -223,7 +226,7 @@ export async function expireIssueSession({ github, owner, repo, issueNumber, ses
   });
   try {
     const issueBody = await getIssueBody(github, owner, repo, issueNumber);
-    await updateIssueGameView(github, owner, repo, issueNumber, issueBody, null, state, inferBaseUrlFromEnv());
+    await updateIssueGameView(github, owner, repo, issueNumber, issueBody, null, state, frameStore, inferBaseUrlFromEnv());
   } catch (error) {
     console.error(`Failed to refresh issue body after inactivity for issue ${issueNumber}`, error);
   }

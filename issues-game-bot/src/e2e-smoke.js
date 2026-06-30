@@ -145,6 +145,21 @@ function createFakeSessionEventRepository() {
   };
 }
 
+function createFakeFrameStore() {
+  const published = [];
+
+  return {
+    kind: "fake",
+    published,
+    async publish(issueNumber, tick, localPath) {
+      published.push({ issueNumber, tick, localPath });
+    },
+    publicUrl({ issueNumber, tick }) {
+      return `https://frames.example.test/${issueNumber}.png?t=${tick}`;
+    }
+  };
+}
+
 function sign(secret, payload) {
   const digest = createHmac("sha256", secret).update(payload).digest("hex");
   return `sha256=${digest}`;
@@ -181,6 +196,7 @@ async function postWebhook(baseUrl, secret, event, payload) {
 
 async function main() {
   const github = createFakeGithubClient();
+  const frameStore = createFakeFrameStore();
   const sessionRepository = createFakeSessionRepository();
   const sessionEventRepository = createFakeSessionEventRepository();
   const sessionManager = createFakeSessionManager();
@@ -195,7 +211,7 @@ async function main() {
   process.env.GITHUB_REPO = "tetris-on-pdf";
   process.env.PUBLIC_BASE_URL = "http://127.0.0.1";
 
-  const app = createServer({ github, config, sessionRepository, sessionEventRepository, sessionManager });
+  const app = createServer({ github, config, frameStore, sessionRepository, sessionEventRepository, sessionManager });
   const server = app.listen(0);
   await new Promise((resolve) => server.once("listening", resolve));
 
@@ -274,6 +290,9 @@ async function main() {
         `Expected hot-session cache to avoid repository reads, got load=${sessionRepository.stats.load} loadOptional=${sessionRepository.stats.loadOptional}`
       );
     }
+    if (frameStore.published.length < 2) {
+      throw new Error(`Expected frame store publish calls, got ${frameStore.published.length}`);
+    }
     const eventsResponse = await fetch(`${baseUrl}/debug/issues/${issueNumber}/events`);
     const eventsPayload = await eventsResponse.json();
     const eventTypes = eventsPayload.events.map((event) => event.type);
@@ -281,6 +300,11 @@ async function main() {
       if (!eventTypes.includes(requiredType)) {
         throw new Error(`Missing expected event type: ${requiredType}`);
       }
+    }
+    const runtimeResponse = await fetch(`${baseUrl}/debug/runtime`);
+    const runtimePayload = await runtimeResponse.json();
+    if (runtimePayload.repositoryInfo.frameStoreKind !== "fake") {
+      throw new Error(`Expected fake frame store kind, got ${runtimePayload.repositoryInfo.frameStoreKind}`);
     }
 
     console.log("e2e-smoke ok");

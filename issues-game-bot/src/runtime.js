@@ -1,4 +1,5 @@
 import { readGithubTarget, readRuntimeConfig } from "./config/env.js";
+import { createFrameStore } from "./frameStore/index.js";
 import { createGithubClient } from "./github/client.js";
 import { ensureEngineAssets } from "./engine.js";
 import { createJobQueue } from "./jobs/queue.js";
@@ -14,6 +15,7 @@ export function createRuntimeServices({
   projectRoot = process.cwd(),
   github = createGithubClient(),
   config = readRuntimeConfig(),
+  frameStore = createFrameStore(),
   sessionRepository = createSessionRepository(),
   sessionEventRepository = createSessionEventRepository(),
   sessionManager = null,
@@ -33,6 +35,7 @@ export function createRuntimeServices({
     primeAt: null
   };
   const repositoryInfo = {
+    frameStoreKind: frameStore.kind,
     sessionRepositoryKind: sessionRepository.kind,
     sessionEventRepositoryKind: sessionEventRepository.kind
   };
@@ -50,6 +53,7 @@ export function createRuntimeServices({
             owner,
             repo,
             issueNumber,
+            frameStore,
             sessionManager: managedSessionManager,
             sessionRepository,
             sessionEventRepository,
@@ -89,6 +93,9 @@ export function createRuntimeServices({
     if (typeof sessionEventRepository.healthCheck === "function") {
       checks.push(sessionEventRepository.healthCheck());
     }
+    if (typeof frameStore.healthCheck === "function") {
+      checks.push(frameStore.healthCheck());
+    }
 
     await Promise.all(checks);
     return {
@@ -105,6 +112,7 @@ export function createRuntimeServices({
     jobStatusStore,
     jobQueue,
     throttle,
+    frameStore,
     sessionRepository,
     sessionEventRepository,
     sessionManager: managedSessionManager,

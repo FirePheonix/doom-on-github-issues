@@ -28,6 +28,7 @@ flowchart TD
   HEALTH[/health] --> H1[githubConfigured]
   HEALTH --> H2[runtime.repository modes]
   HEALTH --> H3[Postgres health check when enabled]
+  HEALTH --> H4[S3 bucket health check when enabled]
   DEBUG1[/debug/runtime] --> D1[recovery metadata]
   DEBUG1 --> D2[repositoryInfo]
   DEBUG2[/debug/issues/:id] --> D3[job timing]

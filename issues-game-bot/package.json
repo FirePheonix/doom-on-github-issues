@@ -9,10 +9,12 @@
     "db:migrate": "node src/migrate.js",
     "render:smoke": "node src/smoke.js",
     "e2e:smoke": "node src/e2e-smoke.js",
+    "frame-store:smoke": "node src/frame-store-smoke.js",
     "recovery:smoke": "node src/recovery-smoke.js",
     "repository-mode:smoke": "node src/repository-mode-smoke.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1076.0",
     "@octokit/rest": "^22.0.0",
     "express": "^5.1.0",
     "pg": "^8.22.0"

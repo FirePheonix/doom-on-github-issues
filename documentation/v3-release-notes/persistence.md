@@ -6,6 +6,7 @@
 flowchart LR
   LC[Session Lifecycle] --> SR[(Session Repository)]
   LC --> ER[(Session Event Repository)]
+  LC --> FS[(Frame Store)]
   SM[Session Manager] --> SR
   DBG[/debug/issues/:id/events] --> ER
 ```
@@ -53,3 +54,12 @@ erDiagram
 - `postgres`
   - session row in `issue_sessions`
   - append-only rows in `issue_session_events`
+
+## Frame Store Modes
+
+- `local`
+  - rendered PNG remains in `data/frames/<issue>.png`
+  - issue body points to `/frames/<issue>.png?t=<tick>`
+- `s3`
+  - rendered PNG is uploaded to object storage after each publish
+  - issue body points directly to the public object URL with tick cache-busting

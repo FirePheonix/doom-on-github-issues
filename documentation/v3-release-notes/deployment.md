@@ -36,5 +36,5 @@ flowchart LR
 
 - queue is still in-process
 - timers are still in-process
-- object storage is not yet implemented
-- Postgres adapters are scaffolded, not the default runtime path
+- object storage now has an S3-backed runtime path, but workers are still in the same app service
+- Postgres adapters are now runnable, but not yet the only production mode

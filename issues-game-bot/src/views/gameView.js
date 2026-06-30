@@ -1,12 +1,14 @@
 import { summarizeState } from "../game.js";
 import { formatIssueSection, mergeIssueBody } from "../issueBody.js";
 import { inferBaseUrlFromEnv, updateIssueBody } from "../github/issues.js";
-import { frameUrlForBaseUrl, frameUrlForRequest } from "../renderer/frames.js";
 
-export async function updateIssueGameView(octokit, owner, repo, issueNumber, body, req, state, baseUrl = "") {
-  const imageUrl = req
-    ? frameUrlForRequest(req, issueNumber, state.tick)
-    : frameUrlForBaseUrl(baseUrl || inferBaseUrlFromEnv(), issueNumber, state.tick);
+export async function updateIssueGameView(octokit, owner, repo, issueNumber, body, req, state, frameStore, baseUrl = "") {
+  const imageUrl = frameStore.publicUrl({
+    issueNumber,
+    tick: state.tick,
+    req,
+    baseUrl: baseUrl || inferBaseUrlFromEnv()
+  });
 
   const section = formatIssueSection({
     stateSummary: summarizeState(state),

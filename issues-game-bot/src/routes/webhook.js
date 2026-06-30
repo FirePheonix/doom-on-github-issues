@@ -16,6 +16,7 @@ export function createWebhookRouter({
   lockStore,
   jobQueue,
   throttle,
+  frameStore,
   sessionRepository,
   sessionEventRepository,
   sessionManager
@@ -46,7 +47,7 @@ export function createWebhookRouter({
       }
 
       if (event === "issues" && payload?.action === "opened") {
-        await handleIssueOpened({ github, owner, repo, payload, req, res, projectRoot, lockStore, jobQueue, config, sessionRepository, sessionEventRepository, sessionManager });
+        await handleIssueOpened({ github, owner, repo, payload, req, res, projectRoot, lockStore, jobQueue, config, frameStore, sessionRepository, sessionEventRepository, sessionManager });
         return;
       }
 
@@ -73,6 +74,7 @@ export function createWebhookRouter({
           jobQueue,
           throttle,
           config,
+          frameStore,
           sessionRepository,
           sessionEventRepository,
           sessionManager
@@ -89,7 +91,7 @@ export function createWebhookRouter({
   return router;
 }
 
-async function handleIssueOpened({ github, owner, repo, payload, req, res, projectRoot, lockStore, jobQueue, config, sessionRepository, sessionEventRepository, sessionManager }) {
+async function handleIssueOpened({ github, owner, repo, payload, req, res, projectRoot, lockStore, jobQueue, config, frameStore, sessionRepository, sessionEventRepository, sessionManager }) {
   const issueNumber = getIssueNumber(payload);
   if (!issueNumber) {
     res.status(200).json({ ok: true, ignored: "missing_issue_number" });
@@ -101,7 +103,7 @@ async function handleIssueOpened({ github, owner, repo, payload, req, res, proje
 
   jobQueue.schedule(issueNumber, async () => {
     await lockStore.withIssueLock(issueNumber, async () => {
-      await startIssueSession({ github, owner, repo, issueNumber, originalBody, req, projectRoot, sessionRepository, sessionEventRepository, sessionManager });
+      await startIssueSession({ github, owner, repo, issueNumber, originalBody, req, projectRoot, frameStore, sessionRepository, sessionEventRepository, sessionManager });
     });
   }, config.bootDelayMs);
 
@@ -152,6 +154,7 @@ async function handleIssueComment({
   jobQueue,
   throttle,
   config,
+  frameStore,
   sessionRepository,
   sessionEventRepository,
   sessionManager
@@ -191,6 +194,7 @@ async function handleIssueComment({
         req,
         projectRoot,
         inactivityMs: config.inactivityMs,
+        frameStore,
         sessionRepository,
         sessionEventRepository,
         sessionManager

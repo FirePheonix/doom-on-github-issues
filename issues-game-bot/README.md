@@ -14,6 +14,7 @@ Turn-based Doom sessions driven by GitHub Issues/comments, rendered through a Do
 - `src/server.js`: app composition and dependency wiring only.
 - `src/runtime.js`: runtime service composition for server boot and smoke tests.
 - `src/persistence/`: session repository adapters (`file` default, `postgres` scaffold).
+- `src/frameStore/`: frame publishing adapters (`local` default, `s3` when configured).
 - `src/routes/`: HTTP endpoints (`/webhook`, `/frames`, `/health`, `/debug`).
 - `src/github/`: GitHub client, webhook validation, issue update/comment helpers.
 - `src/jobs/`: async webhook job queue, per-issue locks, debug status.
@@ -48,7 +49,7 @@ npm install
 pip install -r requirements.txt
 python scripts/fetch_doom_assets.py
 ```
-3. Configure env (`.env`).
+3. Configure env from `.env.example`.
 4. Run server:
 ```bash
 npm start
@@ -57,6 +58,7 @@ npm start
 ```bash
 npm run render:smoke
 npm run e2e:smoke
+npm run frame-store:smoke
 npm run recovery:smoke
 npm run repository-mode:smoke
 ```
@@ -70,12 +72,27 @@ npm run db:migrate
 - Default repository mode:
   - `postgres` when `DATABASE_URL` is present
   - otherwise `file`
+- Example env file: `.env.example`
 - Env:
   - `SESSION_REPOSITORY=file|postgres`
   - `DATABASE_URL=...` when using Postgres
   - `SESSION_REPOSITORY_SCHEMA=public`
   - `SESSION_REPOSITORY_TABLE=issue_sessions`
 - Initial schema file: `sql/001_issue_sessions.sql`
+
+## Frame storage
+
+- Default frame store mode:
+  - `s3` when `FRAME_S3_BUCKET` is present
+  - otherwise `local`
+- Env:
+  - `FRAME_STORE=local|s3`
+  - `FRAME_S3_BUCKET=...`
+  - `FRAME_S3_REGION=us-east-1`
+  - `FRAME_S3_PREFIX=frames`
+  - `FRAME_S3_PUBLIC_BASE_URL=https://...`
+  - `FRAME_S3_ENDPOINT=https://...` for S3-compatible stores
+  - `FRAME_S3_FORCE_PATH_STYLE=true|false`
 
 ## Session event journal
 
@@ -117,6 +134,7 @@ Required vars:
 - Renderer defaults to `doomgeneric` backend (full Doom code path with `doom1.wad`), with automatic `vizdoom` fallback if runtime/backend initialization fails.
 - Active sessions prefer in-memory state first, then repository fallback, to reduce per-command latency.
 - Runtime boot now restores active sessions from the repository and re-arms inactivity timers.
+- Frame publishing now supports local disk or S3-backed public objects.
 - Session transitions are recorded in an append-only event journal for debugging and future replay.
 - `/health` now includes runtime repository mode and DB-backed health when available.
 - Closing a GitHub issue freezes that session as an issue-state action.

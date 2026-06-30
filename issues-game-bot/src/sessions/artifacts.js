@@ -5,6 +5,7 @@ export async function persistSessionArtifacts({
   projectRoot,
   issueNumber,
   state,
+  frameStore,
   sessionRepository,
   sessionManager = null,
   mode = "step",
@@ -19,16 +20,19 @@ export async function persistSessionArtifacts({
   try {
     if (!sessionManager) {
       await renderEngineFrame(projectRoot, sessionPath, framePath);
+      await frameStore.publish(issueNumber, state.tick, framePath);
       return;
     }
 
     if (mode === "start") {
       await sessionManager.startSession(issueNumber, state.seed, framePath);
+      await frameStore.publish(issueNumber, state.tick, framePath);
       return;
     }
 
     if (mode === "restart") {
       await sessionManager.restartSession(issueNumber, state.seed, framePath);
+      await frameStore.publish(issueNumber, state.tick, framePath);
       return;
     }
 
@@ -36,6 +40,7 @@ export async function persistSessionArtifacts({
       const prefixLen = Math.max(0, state.history.length - appliedCommands.length);
       const historyPrefix = state.history.slice(0, prefixLen);
       await sessionManager.applyCommands(issueNumber, state.seed, framePath, historyPrefix, appliedCommands);
+      await frameStore.publish(issueNumber, state.tick, framePath);
       return;
     }
 
@@ -46,5 +51,6 @@ export async function persistSessionArtifacts({
       await sessionManager.invalidate(issueNumber);
     }
     await renderEngineFrame(projectRoot, sessionPath, framePath);
+    await frameStore.publish(issueNumber, state.tick, framePath);
   }
 }

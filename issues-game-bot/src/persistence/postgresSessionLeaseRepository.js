@@ -1,5 +1,19 @@
 import { assertIdentifier, createPgPoolProvider } from "./pg.js";
 
+function mapLeaseRow(row) {
+  return {
+    issueNumber: row.issue_number,
+    workerId: row.worker_id,
+    status: row.status,
+    source: row.source,
+    framePath: row.frame_path,
+    tick: row.tick,
+    lastTouchedAt: row.last_touched_at,
+    leaseExpiresAt: row.lease_expires_at,
+    updatedAt: row.updated_at
+  };
+}
+
 export function createPostgresSessionLeaseRepository({
   connectionString = process.env.DATABASE_URL,
   schema = process.env.SESSION_LEASE_REPOSITORY_SCHEMA || "public",
@@ -24,7 +38,7 @@ export function createPostgresSessionLeaseRepository({
     if (result.rowCount === 0) {
       return null;
     }
-    return result.rows[0];
+    return mapLeaseRow(result.rows[0]);
   }
 
   async function upsert(issueNumber, lease) {
@@ -70,7 +84,7 @@ export function createPostgresSessionLeaseRepository({
       order by updated_at desc
     `;
     const result = await pool.query(query);
-    return result.rows;
+    return result.rows.map(mapLeaseRow);
   }
 
   return {

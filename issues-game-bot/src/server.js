@@ -18,10 +18,14 @@ export function createServer(options = {}) {
     frameStore,
     sessionRepository,
     sessionEventRepository,
+    sessionCommandRepository,
+    sessionLeaseRepository,
+    sessionFrameRepository,
     sessionManager,
     repositoryInfo,
     prime,
-    recovery
+    recovery,
+    workerId
   } = createRuntimeServices(options);
 
   app.locals.runtimeServices = {
@@ -34,10 +38,14 @@ export function createServer(options = {}) {
     frameStore,
     sessionRepository,
     sessionEventRepository,
+    sessionCommandRepository,
+    sessionLeaseRepository,
+    sessionFrameRepository,
     sessionManager,
     repositoryInfo,
     prime,
-    recovery
+    recovery,
+    workerId
   };
 
   app.use(express.json({
@@ -52,6 +60,9 @@ export function createServer(options = {}) {
     jobStatusStore,
     sessionManager,
     sessionEventRepository,
+    sessionCommandRepository,
+    sessionLeaseRepository,
+    sessionFrameRepository,
     runtimeServices: app.locals.runtimeServices
   }));
   app.use(createFramesRouter());
@@ -65,6 +76,9 @@ export function createServer(options = {}) {
     frameStore,
     sessionRepository,
     sessionEventRepository,
+    sessionCommandRepository,
+    sessionLeaseRepository,
+    sessionFrameRepository,
     sessionManager
   }));
 

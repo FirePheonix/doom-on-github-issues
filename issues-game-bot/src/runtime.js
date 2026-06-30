@@ -1,3 +1,4 @@
+import os from "node:os";
 import { readGithubTarget, readRuntimeConfig } from "./config/env.js";
 import { createFrameStore } from "./frameStore/index.js";
 import { createGithubClient } from "./github/client.js";
@@ -5,7 +6,13 @@ import { ensureEngineAssets } from "./engine.js";
 import { createJobQueue } from "./jobs/queue.js";
 import { createLockStore } from "./jobs/locks.js";
 import { createJobStatusStore } from "./jobs/status.js";
-import { createSessionEventRepository, createSessionRepository } from "./persistence/index.js";
+import {
+  createSessionCommandRepository,
+  createSessionEventRepository,
+  createSessionFrameRepository,
+  createSessionLeaseRepository,
+  createSessionRepository
+} from "./persistence/index.js";
 import { getFramePath } from "./storage.js";
 import { expireIssueSession } from "./sessions/lifecycle.js";
 import { createSessionManager } from "./sessions/manager.js";
@@ -18,8 +25,12 @@ export function createRuntimeServices({
   frameStore = createFrameStore(),
   sessionRepository = createSessionRepository(),
   sessionEventRepository = createSessionEventRepository(),
+  sessionCommandRepository = createSessionCommandRepository(),
+  sessionLeaseRepository = createSessionLeaseRepository(),
+  sessionFrameRepository = createSessionFrameRepository(),
   sessionManager = null,
-  beforeJob = null
+  beforeJob = null,
+  workerId = `${os.hostname()}:${process.pid}`
 } = {}) {
   const lockStore = createLockStore();
   const jobStatusStore = createJobStatusStore();
@@ -37,12 +48,18 @@ export function createRuntimeServices({
   const repositoryInfo = {
     frameStoreKind: frameStore.kind,
     sessionRepositoryKind: sessionRepository.kind,
-    sessionEventRepositoryKind: sessionEventRepository.kind
+    sessionEventRepositoryKind: sessionEventRepository.kind,
+    sessionCommandRepositoryKind: sessionCommandRepository.kind,
+    sessionLeaseRepositoryKind: sessionLeaseRepository.kind,
+    sessionFrameRepositoryKind: sessionFrameRepository.kind,
+    workerId
   };
 
   const managedSessionManager = sessionManager || createSessionManager({
     projectRoot,
     inactivityMs: config.inactivityMs,
+    sessionLeaseRepository,
+    workerId,
     onExpire: async (issueNumber) => {
       if (!github) return;
       const { owner, repo } = readGithubTarget();
@@ -57,6 +74,7 @@ export function createRuntimeServices({
             sessionManager: managedSessionManager,
             sessionRepository,
             sessionEventRepository,
+            sessionLeaseRepository,
             inactivityMs: config.inactivityMs
           });
         });
@@ -93,6 +111,15 @@ export function createRuntimeServices({
     if (typeof sessionEventRepository.healthCheck === "function") {
       checks.push(sessionEventRepository.healthCheck());
     }
+    if (typeof sessionCommandRepository.healthCheck === "function") {
+      checks.push(sessionCommandRepository.healthCheck());
+    }
+    if (typeof sessionLeaseRepository.healthCheck === "function") {
+      checks.push(sessionLeaseRepository.healthCheck());
+    }
+    if (typeof sessionFrameRepository.healthCheck === "function") {
+      checks.push(sessionFrameRepository.healthCheck());
+    }
     if (typeof frameStore.healthCheck === "function") {
       checks.push(frameStore.healthCheck());
     }
@@ -115,10 +142,14 @@ export function createRuntimeServices({
     frameStore,
     sessionRepository,
     sessionEventRepository,
+    sessionCommandRepository,
+    sessionLeaseRepository,
+    sessionFrameRepository,
     sessionManager: managedSessionManager,
     repositoryInfo,
     healthCheck,
     prime,
-    recovery
+    recovery,
+    workerId
   };
 }

@@ -21,6 +21,7 @@ Turn-based Doom sessions driven by GitHub Issues/comments, rendered through a Do
 - `src/views/`: GitHub issue markdown rendering for loading/game screens.
 - `src/renderer/`: frame URL/render-adapter helpers.
 - `scripts/`: Python/C Doom renderer pipeline.
+- `sql/`: Postgres schema scaffolds for sessions and event journal.
 
 ## Commands
 - `w`: move forward
@@ -56,6 +57,7 @@ npm start
 ```bash
 npm run render:smoke
 npm run e2e:smoke
+npm run recovery:smoke
 ```
 
 ## Session persistence
@@ -68,6 +70,16 @@ npm run e2e:smoke
   - `SESSION_REPOSITORY_SCHEMA=public`
   - `SESSION_REPOSITORY_TABLE=issue_sessions`
 - Initial schema file: `sql/001_issue_sessions.sql`
+
+## Session event journal
+
+- Default event repository: `file`
+- Optional scaffold: `postgres`
+- Env:
+  - `SESSION_EVENT_REPOSITORY=file|postgres`
+  - `SESSION_EVENT_REPOSITORY_SCHEMA=public`
+  - `SESSION_EVENT_REPOSITORY_TABLE=issue_session_events`
+- Initial schema file: `sql/002_issue_session_events.sql`
 
 ## Railway deploy
 Use Docker deploy for this service (`issues-game-bot/Dockerfile`) so Node and Python/ViZDoom are always installed together.
@@ -99,7 +111,10 @@ Required vars:
 - This is still turn-based because GitHub comments are event-driven.
 - Renderer defaults to `doomgeneric` backend (full Doom code path with `doom1.wad`), with automatic `vizdoom` fallback if runtime/backend initialization fails.
 - Active sessions prefer in-memory state first, then repository fallback, to reduce per-command latency.
+- Runtime boot now restores active sessions from the repository and re-arms inactivity timers.
+- Session transitions are recorded in an append-only event journal for debugging and future replay.
 - Closing a GitHub issue freezes that session as an issue-state action.
 - Inactive games exit after 5 minutes by default via the session manager timer; the GitHub issue remains open and `restart` starts a new run.
 - Sessions: `data/sessions/<issue>.json`
 - Frames: `data/frames/<issue>.png`
+- Events: `data/events/<issue>.json`

@@ -184,7 +184,7 @@ Required vars:
 - Optional: `DOOM_PERSISTENT_ENGINE=auto|true|false` (default `auto`; auto now keeps the persistent worker enabled and primes it behind cached boot/menu frames so later comments can stay on DoomGeneric without first-comment startup stalls)
 - Optional: `DOOM_SESSION_WORKER_TIMEOUT_MS=20000` (normal persistent-worker request timeout)
 - Optional: `DOOM_SESSION_WORKER_STARTUP_TIMEOUT_MS=60000` (longer timeout for initial persistent-worker boot/snapshot)
-- Optional: `DOOM_SESSION_WORKER_READY_TIMEOUT_MS=10000` (how long the Python wrapper waits for the DoomGeneric session binary to emit `READY` after warmup)
+- Optional: `DOOM_SESSION_WORKER_READY_TIMEOUT_MS=60000` (how long the Python wrapper waits for the DoomGeneric session binary to emit `READY` after warmup; defaults to the startup timeout if unset)
 - Optional: `DOOM_INACTIVITY_MS=300000` (session manager exits the game after 5 minutes of inactivity)
 - Optional boot-frame latency controls:
   - `DOOM_BOOT_FRAME_CACHE=true` (publish a cached placeholder frame immediately on issue open)

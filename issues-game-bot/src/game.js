@@ -74,6 +74,12 @@ function expandCompactCommandLine(line) {
     return [line];
   }
 
+  const compactRepeat = normalized.match(/^([wasdr])x?(\d{1,2})$/);
+  if (compactRepeat) {
+    const [, command, repeat] = compactRepeat;
+    return [`${command} ${repeat}`];
+  }
+
   if (/^[wasdr]+$/.test(normalized)) {
     return normalized.split("");
   }

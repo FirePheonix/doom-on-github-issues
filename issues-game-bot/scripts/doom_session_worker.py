@@ -230,7 +230,15 @@ class DoomGenericSession:
         if not self.proc.stdout:
             raise RuntimeError("doomgeneric session process stdout unavailable")
 
-        timeout_ms = int(os.getenv("DOOM_SESSION_WORKER_READY_TIMEOUT_MS", "10000"))
+        timeout_ms = int(
+            os.getenv(
+                "DOOM_SESSION_WORKER_READY_TIMEOUT_MS",
+                os.getenv(
+                    "DOOM_SESSION_WORKER_STARTUP_TIMEOUT_MS",
+                    os.getenv("DOOM_SESSION_WORKER_TIMEOUT_MS", "60000"),
+                ),
+            )
+        )
         selector = selectors.DefaultSelector()
         try:
             selector.register(self.proc.stdout, selectors.EVENT_READ)

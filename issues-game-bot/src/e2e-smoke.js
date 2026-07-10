@@ -384,7 +384,7 @@ async function main() {
         state: "open"
       },
       comment: {
-        body: "ww\nw\nw\nw\nw\nw\nw",
+        body: "dx4\nw\nw\nw\nw",
         user: { type: "User" }
       }
     });

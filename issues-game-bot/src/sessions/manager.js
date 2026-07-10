@@ -223,18 +223,33 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     ]);
   }
 
+  function updateLiveHistory(record, history) {
+    const nextHistory = Array.isArray(history) ? [...history] : [];
+    record.liveHistory = nextHistory;
+    record.liveHistoryKey = historyKey(nextHistory);
+    record.liveHistoryLength = nextHistory.length;
+    record.liveSyncError = "";
+  }
+
+  async function repairLiveHistory(record, issueNumber, seed, framePath, history) {
+    const nextHistory = Array.isArray(history) ? [...history] : [];
+    await engine.syncHistory(issueNumber, seed, framePath, nextHistory);
+    updateLiveHistory(record, nextHistory);
+    record.liveSyncTargetHistory = [];
+    record.liveSyncTargetKey = "";
+    record.liveSyncPromise = null;
+    record.source = "live";
+  }
+
   async function startSession(issueNumber, seed, framePath) {
     const record = ensureRecord(issueNumber, seed, framePath);
     record.status = "active";
     await engine.startSession(issueNumber, seed, framePath);
     record.source = "live";
-    record.liveHistory = [];
-    record.liveHistoryKey = historyKey([]);
-    record.liveHistoryLength = 0;
+    updateLiveHistory(record, []);
     record.liveSyncTargetHistory = [];
     record.liveSyncTargetKey = "";
     record.liveSyncPromise = null;
-    record.liveSyncError = "";
     armTimer(issueNumber);
   }
 
@@ -243,13 +258,10 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     record.status = "active";
     await engine.restartSession(issueNumber, seed, framePath);
     record.source = "live";
-    record.liveHistory = [];
-    record.liveHistoryKey = historyKey([]);
-    record.liveHistoryLength = 0;
+    updateLiveHistory(record, []);
     record.liveSyncTargetHistory = [];
     record.liveSyncTargetKey = "";
     record.liveSyncPromise = null;
-    record.liveSyncError = "";
     armTimer(issueNumber);
   }
 
@@ -261,17 +273,12 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
       await waitForLiveSync(record, expectedHistoryKey);
     }
     if (record.liveHistoryKey !== expectedHistoryKey) {
-      throw new Error(
-        `persistent_engine_not_ready synced_len=${record.liveHistoryLength} expected_len=${Array.isArray(historyPrefix) ? historyPrefix.length : 0}`
-      );
+      await repairLiveHistory(record, issueNumber, seed, framePath, historyPrefix);
     }
     if (Array.isArray(commands) && commands.length > 0) {
       await engine.applyCommands(issueNumber, seed, framePath, historyPrefix, commands);
       const nextHistory = [...(Array.isArray(historyPrefix) ? historyPrefix : []), ...commands];
-      record.liveHistory = nextHistory;
-      record.liveHistoryKey = historyKey(nextHistory);
-      record.liveHistoryLength = nextHistory.length;
-      record.liveSyncError = "";
+      updateLiveHistory(record, nextHistory);
     }
     record.source = "live";
     armTimer(issueNumber);

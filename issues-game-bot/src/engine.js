@@ -327,8 +327,7 @@ export function createPersistentEngine(projectRoot) {
   }
 
   async function startSession(issueNumber, seed, framePath) {
-    const worker = await spawnOrReuse(issueNumber, seed, framePath, []);
-    await worker.request("snapshot", {}, { timeoutMs: worker.startupTimeoutMs });
+    await spawnOrReuse(issueNumber, seed, framePath, []);
   }
 
   async function restartSession(issueNumber, seed, framePath) {
@@ -339,7 +338,6 @@ export function createPersistentEngine(projectRoot) {
   async function syncHistory(issueNumber, seed, framePath, history = []) {
     await stopSession(issueNumber);
     const worker = await spawnOrReuse(issueNumber, seed, framePath, []);
-    await worker.request("snapshot", {}, { timeoutMs: worker.startupTimeoutMs });
     if (Array.isArray(history) && history.length > 0) {
       await worker.request("step", { commands: history }, { timeoutMs: worker.startupTimeoutMs });
     }

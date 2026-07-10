@@ -4,3 +4,4 @@ data/sessions/*.json
 data/frames/*.png
 smoke-frame.png
 scripts/assets/
+scripts/_vizdoom.ini

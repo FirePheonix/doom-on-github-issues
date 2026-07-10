@@ -8,6 +8,7 @@
     "dev": "node --watch src/index.js",
     "db:migrate": "node src/migrate.js",
     "render:smoke": "node src/smoke.js",
+    "menu-frame:sync": "node src/menu-frame-sync.js",
     "e2e:smoke": "node src/e2e-smoke.js",
     "frame-store:smoke": "node src/frame-store-smoke.js",
     "recovery:smoke": "node src/recovery-smoke.js",
@@ -17,6 +18,7 @@
     "@aws-sdk/client-s3": "^3.1076.0",
     "@octokit/rest": "^22.0.0",
     "express": "^5.1.0",
-    "pg": "^8.22.0"
+    "pg": "^8.22.0",
+    "redis": "^6.1.0"
   }
 }

@@ -42,6 +42,14 @@ export function getBootFrameSessionPath() {
   return path.join(cacheDir, "boot-frame-session.json");
 }
 
+export function getMenuFrameCachePath(key) {
+  return path.join(cacheDir, `menu-frame-${key}.png`);
+}
+
+export function getMenuFrameSessionPath(key) {
+  return path.join(cacheDir, `menu-frame-${key}.json`);
+}
+
 export function getSessionsDir() {
   return sessionsDir;
 }

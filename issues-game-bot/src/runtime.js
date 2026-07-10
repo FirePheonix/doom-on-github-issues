@@ -1,5 +1,6 @@
 import os from "node:os";
 import { ensureBootFrameCache, isBootFrameCacheEnabled, isBootFramePrewarmEnabled } from "./bootFrame/cache.js";
+import { isRedisConfigured, pingRedis } from "./cache/redis.js";
 import { readGithubTarget, readRuntimeConfig } from "./config/env.js";
 import { createFrameStore } from "./frameStore/index.js";
 import { createGithubClient } from "./github/client.js";
@@ -7,6 +8,7 @@ import { ensureEngineAssets } from "./engine.js";
 import { createJobQueue } from "./jobs/queue.js";
 import { createLockStore } from "./jobs/locks.js";
 import { createJobStatusStore } from "./jobs/status.js";
+import { isMenuFrameCacheEnabled, isMenuFramePrewarmEnabled, listMenuFrameSpecs, primeMenuFrameCache } from "./menuFrame/cache.js";
 import {
   createSessionCommandRepository,
   createSessionEventRepository,
@@ -49,6 +51,13 @@ export function createRuntimeServices({
       enabled: isBootFrameCacheEnabled(),
       prewarmed: false,
       error: null
+    },
+    menuFrames: {
+      enabled: isMenuFrameCacheEnabled(),
+      prewarmed: false,
+      warmedKeys: [],
+      specs: listMenuFrameSpecs(),
+      error: null
     }
   };
   const repositoryInfo = {
@@ -59,6 +68,8 @@ export function createRuntimeServices({
     sessionLeaseRepositoryKind: sessionLeaseRepository.kind,
     sessionFrameRepositoryKind: sessionFrameRepository.kind,
     bootFrameCacheEnabled: isBootFrameCacheEnabled(),
+    menuFrameCacheEnabled: isMenuFrameCacheEnabled(),
+    redisConfigured: isRedisConfigured(),
     workerId
   };
 
@@ -103,6 +114,15 @@ export function createRuntimeServices({
       }
     }
 
+    if (isMenuFrameCacheEnabled() && isMenuFramePrewarmEnabled()) {
+      try {
+        recovery.menuFrames.warmedKeys = await primeMenuFrameCache(projectRoot, frameStore);
+        recovery.menuFrames.prewarmed = recovery.menuFrames.warmedKeys.length > 0;
+      } catch (error) {
+        recovery.menuFrames.error = error instanceof Error ? error.message : String(error);
+      }
+    }
+
     const activeStates = sessionRepository.listByStatus
       ? await sessionRepository.listByStatus(["active"])
       : [];
@@ -138,6 +158,9 @@ export function createRuntimeServices({
     }
     if (typeof frameStore.healthCheck === "function") {
       checks.push(frameStore.healthCheck());
+    }
+    if (isRedisConfigured()) {
+      checks.push(pingRedis());
     }
 
     await Promise.all(checks);

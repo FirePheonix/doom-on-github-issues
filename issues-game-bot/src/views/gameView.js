@@ -2,8 +2,8 @@ import { summarizeState } from "../game.js";
 import { formatIssueSection, mergeIssueBody } from "../issueBody.js";
 import { inferBaseUrlFromEnv, updateIssueBody } from "../github/issues.js";
 
-export async function updateIssueGameView(octokit, owner, repo, issueNumber, body, req, state, frameStore, baseUrl = "") {
-  const imageUrl = frameStore.publicUrl({
+export async function updateIssueGameView(octokit, owner, repo, issueNumber, body, req, state, frameStore, baseUrl = "", imageUrlOverride = "") {
+  const imageUrl = imageUrlOverride || frameStore.publicUrl({
     issueNumber,
     tick: state.tick,
     req,

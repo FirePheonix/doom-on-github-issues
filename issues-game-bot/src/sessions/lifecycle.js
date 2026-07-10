@@ -67,7 +67,7 @@ async function appendSessionCommandRecords(sessionCommandRepository, issueNumber
 export async function startIssueSession({ github, owner, repo, issueNumber, originalBody, req, projectRoot, frameStore, sessionRepository, sessionEventRepository, sessionCommandRepository, sessionFrameRepository, sessionManager }) {
   await ensureDataDir();
   const state = createSession(issueNumber);
-  await persistSessionArtifacts({
+  const artifactResult = await persistSessionArtifacts({
     projectRoot,
     issueNumber,
     state,
@@ -90,7 +90,7 @@ export async function startIssueSession({ github, owner, repo, issueNumber, orig
     tick: state.tick,
     status: state.status
   });
-  await updateIssueGameView(github, owner, repo, issueNumber, originalBody, req, state, frameStore);
+  await updateIssueGameView(github, owner, repo, issueNumber, originalBody, req, state, frameStore, "", artifactResult?.imageUrlOverride || "");
 }
 
 export async function closeIssueSession({ github, owner, repo, issueNumber, sessionRepository, sessionEventRepository, sessionLeaseRepository, sessionManager }) {
@@ -273,7 +273,7 @@ export async function applyIssueCommentCommand({
     });
   }
   const mode = transition.restarted ? "restart" : "step";
-    await persistSessionArtifacts({
+    const artifactResult = await persistSessionArtifacts({
       projectRoot,
       issueNumber,
       state,
@@ -284,7 +284,7 @@ export async function applyIssueCommentCommand({
       mode,
       appliedCommands: transition.appliedCommands
     });
-  await updateIssueGameView(github, owner, repo, issueNumber, originalBody, req, state, frameStore);
+  await updateIssueGameView(github, owner, repo, issueNumber, originalBody, req, state, frameStore, "", artifactResult?.imageUrlOverride || "");
 }
 
 export async function expireIssueSession({ github, owner, repo, issueNumber, frameStore, sessionRepository, sessionEventRepository, sessionLeaseRepository, sessionManager, inactivityMs }) {

@@ -61,6 +61,11 @@ function createPersistentSessionWorker({ projectRoot, issueNumber, framePath, se
   let chain = Promise.resolve();
   const pending = new Map();
   const requestTimeoutMs = Number(process.env.DOOM_SESSION_WORKER_TIMEOUT_MS || "20000");
+  const startupTimeoutMs = Number(
+    process.env.DOOM_SESSION_WORKER_STARTUP_TIMEOUT_MS ||
+    process.env.DOOM_SESSION_WORKER_TIMEOUT_MS ||
+    "60000"
+  );
 
   function rejectPending(error) {
     for (const item of pending.values()) {
@@ -118,19 +123,21 @@ function createPersistentSessionWorker({ projectRoot, issueNumber, framePath, se
     onExit?.(error);
   });
 
-  function request(type, payload = {}) {
+  function request(type, payload = {}, options = {}) {
     if (closed) {
       return Promise.reject(new Error("session_worker_closed"));
     }
 
     const id = nextId++;
     const message = JSON.stringify({ id, type, ...payload }) + "\n";
+    const timeoutMs = Number(options.timeoutMs || requestTimeoutMs);
 
     const run = () => new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         pending.delete(id);
-        reject(new Error(`session_worker_timeout type=${type} issue=${issueNumber} after ${requestTimeoutMs}ms`));
-      }, requestTimeoutMs);
+        const stderrInfo = stderrTail.trim() ? ` stderr=${JSON.stringify(stderrTail.trim())}` : "";
+        reject(new Error(`session_worker_timeout type=${type} issue=${issueNumber} after ${timeoutMs}ms${stderrInfo}`));
+      }, timeoutMs);
 
       pending.set(id, {
         resolve: (value) => {
@@ -177,7 +184,8 @@ function createPersistentSessionWorker({ projectRoot, issueNumber, framePath, se
   return {
     request,
     shutdown,
-    isClosed: () => closed
+    isClosed: () => closed,
+    startupTimeoutMs
   };
 }
 
@@ -210,9 +218,9 @@ export function createPersistentEngine(projectRoot) {
     });
 
     workers.set(issueNumber, { worker, framePath });
-    await worker.request("snapshot");
+    await worker.request("snapshot", {}, { timeoutMs: worker.startupTimeoutMs });
     if (history.length > 0) {
-      await worker.request("step", { commands: history });
+      await worker.request("step", { commands: history }, { timeoutMs: worker.startupTimeoutMs });
     }
     return worker;
   }

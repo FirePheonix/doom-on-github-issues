@@ -10,7 +10,7 @@ export function readRuntimeConfig() {
   return {
     webhookSecret: process.env.GITHUB_WEBHOOK_SECRET || "",
     issueCooldownMs: Number(process.env.ISSUE_COOLDOWN_MS || "1200"),
-    bootDelayMs: Number(process.env.DOOM_BOOT_DELAY_MS || "500"),
+    bootDelayMs: Number(process.env.DOOM_BOOT_DELAY_MS || "0"),
     inactivityMs: Number(process.env.DOOM_INACTIVITY_MS || "300000")
   };
 }
@@ -21,4 +21,3 @@ export function readGithubTarget() {
     repo: requiredEnv("GITHUB_REPO")
   };
 }
-

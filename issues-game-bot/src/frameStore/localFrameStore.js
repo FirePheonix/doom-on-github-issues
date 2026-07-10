@@ -4,11 +4,15 @@ export function createLocalFrameStore() {
   return {
     kind: "local",
     async publish() {},
+    async publishShared() {},
     publicUrl({ issueNumber, tick, req, baseUrl }) {
       if (req) {
         return frameUrlForRequest(req, issueNumber, tick);
       }
       return frameUrlForBaseUrl(baseUrl, issueNumber, tick);
+    },
+    sharedUrl() {
+      return "";
     }
   };
 }

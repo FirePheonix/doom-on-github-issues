@@ -23,16 +23,18 @@ function normalizeTick(tick) {
 }
 
 export function createS3FrameStore({
-  bucket = process.env.S3_BUCKET_NAME || process.env.FRAME_S3_BUCKET,
+  bucket = process.env.S3_BUCKET_NAME || process.env.AWS_S3_BUCKET || process.env.FRAME_S3_BUCKET,
   region = process.env.FRAME_S3_REGION || process.env.AWS_REGION || "us-east-1",
-  prefix = process.env.S3_FOLDER_NAME || process.env.FRAME_S3_PREFIX || "frames",
-  publicBaseUrl = process.env.FRAME_S3_PUBLIC_BASE_URL || "",
+  prefix = process.env.S3_FOLDER_NAME || process.env.AWS_S3_PREFIX || process.env.FRAME_S3_PREFIX || "frames",
+  publicBaseUrl = process.env.FRAME_S3_PUBLIC_BASE_URL || process.env.FRAME_CDN_BASE_URL || "",
   endpoint = process.env.FRAME_S3_ENDPOINT || "",
-  forcePathStyle = (process.env.FRAME_S3_FORCE_PATH_STYLE || "false").toLowerCase() === "true"
+  forcePathStyle = (process.env.FRAME_S3_FORCE_PATH_STYLE || "false").toLowerCase() === "true",
+  sharedPrefix = process.env.MENU_FRAME_S3_PREFIX || ""
 } = {}) {
   const safeBucket = requireEnvValue(bucket, "S3_BUCKET_NAME");
   const safeRegion = requireEnvValue(region, "AWS_REGION");
   const safePrefix = prefix.replace(/^\/+|\/+$/g, "");
+  const safeSharedPrefix = (sharedPrefix || `${safePrefix}/menu-cache`).replace(/^\/+|\/+$/g, "");
   const baseUrl = inferPublicBaseUrl({
     bucket: safeBucket,
     region: safeRegion,
@@ -51,6 +53,11 @@ export function createS3FrameStore({
     return `${base}/${filename}`;
   }
 
+  function sharedObjectKey(name) {
+    const filename = `${normalizeTick(name)}.png`;
+    return safeSharedPrefix ? `${safeSharedPrefix}/${filename}` : filename;
+  }
+
   async function publish(issueNumber, tick, localPath) {
     const body = await readFile(localPath);
     await client.send(new PutObjectCommand({
@@ -66,6 +73,21 @@ export function createS3FrameStore({
     return `${baseUrl}/${objectKey(issueNumber, tick)}`;
   }
 
+  async function publishShared(name, localPath) {
+    const body = await readFile(localPath);
+    await client.send(new PutObjectCommand({
+      Bucket: safeBucket,
+      Key: sharedObjectKey(name),
+      Body: body,
+      ContentType: "image/png",
+      CacheControl: "public, max-age=31536000, immutable"
+    }));
+  }
+
+  function sharedUrl(name) {
+    return `${baseUrl}/${sharedObjectKey(name)}`;
+  }
+
   async function healthCheck() {
     await client.send(new HeadBucketCommand({ Bucket: safeBucket }));
   }
@@ -75,8 +97,11 @@ export function createS3FrameStore({
     bucket: safeBucket,
     region: safeRegion,
     prefix: safePrefix,
+    sharedPrefix: safeSharedPrefix,
     publish,
     publicUrl,
+    publishShared,
+    sharedUrl,
     healthCheck
   };
 }

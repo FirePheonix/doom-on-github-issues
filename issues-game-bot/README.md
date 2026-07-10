@@ -182,6 +182,7 @@ Required vars:
 - Optional: `DOOM_MODE=demons|classic` (default `demons`; use `classic` to attempt IWAD startup path)
 - Optional: `DOOM_ENGINE=doomgeneric|vizdoom` (default `doomgeneric`, falls back to vizdoom if startup fails)
 - Optional: `DOOM_PERSISTENT_ENGINE=auto|true|false` (default `auto`; auto now keeps the persistent worker enabled and primes it behind cached boot/menu frames so later comments can stay on DoomGeneric without first-comment startup stalls)
+- Optional: `DOOM_PERSISTENT_SYNC_WAIT_MS=2000` (when a cached frame already kicked off a background live-session sync, wait this long for that exact sync to finish before falling back to replay)
 - Optional: `DOOM_SESSION_WORKER_TIMEOUT_MS=20000` (normal persistent-worker request timeout)
 - Optional: `DOOM_SESSION_WORKER_STARTUP_TIMEOUT_MS=60000` (longer timeout for initial persistent-worker boot/snapshot)
 - Optional: `DOOM_SESSION_WORKER_READY_TIMEOUT_MS=60000` (legacy compatibility knob; current worker wrapper announces readiness immediately and the real startup cost is paid by the first background `snapshot`/`step` sync attempt)

@@ -3,6 +3,7 @@ import { createPersistentEngine } from "../engine.js";
 export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
   const engine = createPersistentEngine(projectRoot);
   const records = new Map();
+  const liveSyncWaitMs = Math.max(0, Number(process.env.DOOM_PERSISTENT_SYNC_WAIT_MS || "2000"));
 
   function cloneState(state) {
     return structuredClone(state);
@@ -172,6 +173,23 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     return cloneState(record.stateSnapshot);
   }
 
+  async function waitForLiveSync(record, expectedHistoryKey) {
+    if (!record?.liveSyncPromise) {
+      return;
+    }
+    if (record.liveSyncTargetKey !== expectedHistoryKey) {
+      return;
+    }
+    if (liveSyncWaitMs <= 0) {
+      return;
+    }
+
+    await Promise.race([
+      record.liveSyncPromise.catch(() => {}),
+      new Promise((resolve) => setTimeout(resolve, liveSyncWaitMs))
+    ]);
+  }
+
   async function startSession(issueNumber, seed, framePath) {
     const record = ensureRecord(issueNumber, seed, framePath);
     record.status = "active";
@@ -203,7 +221,7 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     record.status = "active";
     const expectedHistoryKey = historyKey(historyPrefix);
     if (record.liveSyncPromise) {
-      throw new Error(`persistent_engine_not_ready syncing expected_len=${Array.isArray(historyPrefix) ? historyPrefix.length : 0}`);
+      await waitForLiveSync(record, expectedHistoryKey);
     }
     if (record.liveHistoryKey !== expectedHistoryKey) {
       throw new Error(

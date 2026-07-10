@@ -8,13 +8,7 @@ import { createJobQueue } from "./jobs/queue.js";
 import { createLockStore } from "./jobs/locks.js";
 import { createJobStatusStore } from "./jobs/status.js";
 import { isMenuFrameCacheEnabled, isMenuFramePrewarmEnabled, listMenuFrameSpecs, primeMenuFrameCache } from "./menuFrame/cache.js";
-import {
-  createSessionCommandRepository,
-  createSessionEventRepository,
-  createSessionFrameRepository,
-  createSessionLeaseRepository,
-  createSessionRepository
-} from "./persistence/index.js";
+import { createSessionRepository } from "./persistence/index.js";
 import { getFramePath } from "./storage.js";
 import { expireIssueSession } from "./sessions/lifecycle.js";
 import { createSessionManager } from "./sessions/manager.js";
@@ -26,10 +20,10 @@ export function createRuntimeServices({
   config = readRuntimeConfig(),
   frameStore = createFrameStore(),
   sessionRepository = createSessionRepository(),
-  sessionEventRepository = createSessionEventRepository(),
-  sessionCommandRepository = createSessionCommandRepository(),
-  sessionLeaseRepository = createSessionLeaseRepository(),
-  sessionFrameRepository = createSessionFrameRepository(),
+  sessionEventRepository = null,
+  sessionCommandRepository = null,
+  sessionLeaseRepository = null,
+  sessionFrameRepository = null,
   sessionManager = null,
   beforeJob = null,
   workerId = `${os.hostname()}:${process.pid}`
@@ -62,10 +56,10 @@ export function createRuntimeServices({
   const repositoryInfo = {
     frameStoreKind: frameStore.kind,
     sessionRepositoryKind: sessionRepository.kind,
-    sessionEventRepositoryKind: sessionEventRepository.kind,
-    sessionCommandRepositoryKind: sessionCommandRepository.kind,
-    sessionLeaseRepositoryKind: sessionLeaseRepository.kind,
-    sessionFrameRepositoryKind: sessionFrameRepository.kind,
+    sessionEventRepositoryKind: sessionEventRepository?.kind || "disabled",
+    sessionCommandRepositoryKind: sessionCommandRepository?.kind || "disabled",
+    sessionLeaseRepositoryKind: sessionLeaseRepository?.kind || "disabled",
+    sessionFrameRepositoryKind: sessionFrameRepository?.kind || "disabled",
     bootFrameCacheEnabled: isBootFrameCacheEnabled(),
     menuFrameCacheEnabled: isMenuFrameCacheEnabled(),
     workerId
@@ -74,7 +68,6 @@ export function createRuntimeServices({
   const managedSessionManager = sessionManager || createSessionManager({
     projectRoot,
     inactivityMs: config.inactivityMs,
-    sessionLeaseRepository,
     workerId,
     onExpire: async (issueNumber) => {
       if (!github) return;
@@ -89,8 +82,6 @@ export function createRuntimeServices({
             frameStore,
             sessionManager: managedSessionManager,
             sessionRepository,
-            sessionEventRepository,
-            sessionLeaseRepository,
             inactivityMs: config.inactivityMs
           });
         });

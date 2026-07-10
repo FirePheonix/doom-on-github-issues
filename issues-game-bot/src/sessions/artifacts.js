@@ -1,6 +1,5 @@
 import { publishCachedMenuFrame } from "../menuFrame/cache.js";
 import { renderEngineFrame } from "../engine.js";
-import { inferBaseUrlFromEnv } from "../github/issues.js";
 import { getFramePath, getSessionPath } from "../storage.js";
 
 export async function persistSessionArtifacts({
@@ -8,42 +7,13 @@ export async function persistSessionArtifacts({
   issueNumber,
   state,
   frameStore,
-  sessionRepository,
-  sessionFrameRepository = null,
   sessionManager = null,
   mode = "step",
   appliedCommands = []
 }) {
-  await sessionRepository.save(issueNumber, state);
-
   const sessionPath = getSessionPath(issueNumber);
   const framePath = getFramePath(issueNumber);
   sessionManager?.rememberState?.(issueNumber, state, framePath);
-
-  async function recordPublishedFrame(publishedMode = mode, publicUrlOverride = "") {
-    if (!sessionFrameRepository) {
-      return;
-    }
-
-    let publicUrl = "";
-    try {
-      publicUrl = publicUrlOverride || frameStore.publicUrl({
-        issueNumber,
-        tick: state.tick,
-        baseUrl: inferBaseUrlFromEnv()
-      }) || "";
-    } catch {}
-
-    await sessionFrameRepository.append(issueNumber, {
-      issueNumber,
-      tick: state.tick,
-      frameStoreKind: frameStore.kind,
-      frameRef: frameStore.kind === "local" ? framePath : (publicUrl || framePath),
-      publicUrl,
-      mode: publishedMode,
-      publishedAt: new Date().toISOString()
-    });
-  }
 
   try {
     const cachedMenuFrame = await publishCachedMenuFrame({
@@ -54,7 +24,6 @@ export async function persistSessionArtifacts({
       frameStore
     });
     if (cachedMenuFrame) {
-      await recordPublishedFrame(cachedMenuFrame.kind, cachedMenuFrame.sharedUrl || "");
       return {
         imageUrlOverride: cachedMenuFrame.sharedUrl || ""
       };
@@ -63,7 +32,6 @@ export async function persistSessionArtifacts({
     if (!sessionManager) {
       await renderEngineFrame(projectRoot, sessionPath, framePath);
       await frameStore.publish(issueNumber, state.tick, framePath);
-      await recordPublishedFrame();
       return {
         imageUrlOverride: ""
       };
@@ -72,7 +40,6 @@ export async function persistSessionArtifacts({
     if (mode === "start") {
       await sessionManager.startSession(issueNumber, state.seed, framePath);
       await frameStore.publish(issueNumber, state.tick, framePath);
-      await recordPublishedFrame();
       return {
         imageUrlOverride: ""
       };
@@ -81,7 +48,6 @@ export async function persistSessionArtifacts({
     if (mode === "restart") {
       await sessionManager.restartSession(issueNumber, state.seed, framePath);
       await frameStore.publish(issueNumber, state.tick, framePath);
-      await recordPublishedFrame();
       return {
         imageUrlOverride: ""
       };
@@ -92,7 +58,6 @@ export async function persistSessionArtifacts({
       const historyPrefix = state.history.slice(0, prefixLen);
       await sessionManager.applyCommands(issueNumber, state.seed, framePath, historyPrefix, appliedCommands);
       await frameStore.publish(issueNumber, state.tick, framePath);
-      await recordPublishedFrame();
       return {
         imageUrlOverride: ""
       };
@@ -109,7 +74,6 @@ export async function persistSessionArtifacts({
     }
     await renderEngineFrame(projectRoot, sessionPath, framePath);
     await frameStore.publish(issueNumber, state.tick, framePath);
-    await recordPublishedFrame();
     return {
       imageUrlOverride: ""
     };

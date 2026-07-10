@@ -1,6 +1,6 @@
 import { createPersistentEngine } from "../engine.js";
 
-export function createSessionManager({ projectRoot, inactivityMs, onExpire, sessionLeaseRepository = null, workerId = `worker:${process.pid}` }) {
+export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
   const engine = createPersistentEngine(projectRoot);
   const records = new Map();
 
@@ -22,32 +22,6 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire, sess
     return status === "active";
   }
 
-  function buildLease(record) {
-    return {
-      issueNumber: record.issueNumber,
-      workerId,
-      status: record.status,
-      source: record.source,
-      framePath: record.framePath || null,
-      tick: record.stateSnapshot?.tick ?? null,
-      lastTouchedAt: record.lastTouchedAt || null,
-      leaseExpiresAt: record.expiresAt || null,
-      updatedAt: new Date().toISOString()
-    };
-  }
-
-  async function syncLease(record) {
-    if (!sessionLeaseRepository || !record) return;
-    await sessionLeaseRepository.upsert(record.issueNumber, buildLease(record));
-  }
-
-  function syncLeaseLater(record) {
-    if (!sessionLeaseRepository || !record) return;
-    void syncLease(record).catch((error) => {
-      console.error(`Failed to persist lease for issue ${record.issueNumber}`, error);
-    });
-  }
-
   function getRemainingMs(lastActivityAt) {
     if (!lastActivityAt) {
       return inactivityMs;
@@ -67,11 +41,9 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire, sess
     if (!shouldArmTimer(status)) {
       record.expiresAt = null;
       clearTimer(record);
-      syncLeaseLater(record);
       return;
     }
     armTimer(issueNumber);
-    syncLeaseLater(record);
   }
 
   function armTimer(issueNumber, remainingMs = inactivityMs) {
@@ -80,7 +52,6 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire, sess
 
     clearTimer(record);
     record.expiresAt = new Date(Date.now() + remainingMs).toISOString();
-    syncLeaseLater(record);
     record.timer = setTimeout(async () => {
       const latest = records.get(issueNumber);
       if (!latest || latest.expiring || !shouldArmTimer(latest.status)) {
@@ -89,14 +60,12 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire, sess
 
       latest.expiring = true;
       latest.expiresAt = new Date().toISOString();
-      syncLeaseLater(latest);
       try {
         await onExpire?.(issueNumber);
       } finally {
         const current = records.get(issueNumber);
         if (current) {
           current.expiring = false;
-          syncLeaseLater(current);
         }
       }
     }, Math.max(0, remainingMs));
@@ -141,7 +110,6 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire, sess
       record.expiresAt = null;
       clearTimer(record);
     }
-    syncLeaseLater(record);
   }
 
   function getState(issueNumber) {
@@ -158,7 +126,6 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire, sess
     await engine.startSession(issueNumber, seed, framePath);
     record.source = "live";
     armTimer(issueNumber);
-    await syncLease(record);
   }
 
   async function restartSession(issueNumber, seed, framePath) {
@@ -167,7 +134,6 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire, sess
     await engine.restartSession(issueNumber, seed, framePath);
     record.source = "live";
     armTimer(issueNumber);
-    await syncLease(record);
   }
 
   async function applyCommands(issueNumber, seed, framePath, historyPrefix, commands) {
@@ -178,7 +144,6 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire, sess
     }
     record.source = "live";
     armTimer(issueNumber);
-    await syncLease(record);
   }
 
   function restoreSession(state, framePath) {
@@ -190,11 +155,9 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire, sess
     if (!shouldArmTimer(state.status)) {
       record.expiresAt = null;
       clearTimer(record);
-      syncLeaseLater(record);
       return;
     }
     armTimer(state.issueNumber, getRemainingMs(state.lastActivityAt));
-    syncLeaseLater(record);
   }
 
   async function stopSession(issueNumber, status = "stopped") {
@@ -208,7 +171,6 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire, sess
       clearTimer(record);
     }
     await engine.stopSession(issueNumber);
-    await syncLease(record);
   }
 
   async function invalidate(issueNumber) {
@@ -218,9 +180,6 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire, sess
       records.delete(issueNumber);
     }
     await engine.invalidate(issueNumber);
-    if (sessionLeaseRepository) {
-      await sessionLeaseRepository.remove(issueNumber);
-    }
   }
 
   function get(issueNumber) {

@@ -264,10 +264,6 @@ async function main() {
   const github = createFakeGithubClient();
   const frameStore = createFakeFrameStore();
   const sessionRepository = createFakeSessionRepository();
-  const sessionEventRepository = createFakeSessionEventRepository();
-  const sessionCommandRepository = createFakeSessionCommandRepository();
-  const sessionLeaseRepository = createFakeSessionLeaseRepository();
-  const sessionFrameRepository = createFakeSessionFrameRepository();
   const sessionManager = createFakeSessionManager();
   const config = {
     webhookSecret: "smoke-secret",
@@ -292,10 +288,6 @@ async function main() {
     config,
     frameStore,
     sessionRepository,
-    sessionEventRepository,
-    sessionCommandRepository,
-    sessionLeaseRepository,
-    sessionFrameRepository,
     sessionManager
   });
   const server = app.listen(0);
@@ -409,23 +401,22 @@ async function main() {
     if (!String(frameStore.published[0]?.tick || "").startsWith("boot-")) {
       throw new Error(`Expected cached boot frame publish first, got tick=${frameStore.published[0]?.tick}`);
     }
-    const eventsResponse = await fetch(`${baseUrl}/debug/issues/${issueNumber}/events`);
-    const eventsPayload = await eventsResponse.json();
-    const eventTypes = eventsPayload.events.map((event) => event.type);
-    for (const requiredType of ["session.started", "command.applied", "issue.closed"]) {
-      if (!eventTypes.includes(requiredType)) {
-        throw new Error(`Missing expected event type: ${requiredType}`);
-      }
-    }
     const runtimeResponse = await fetch(`${baseUrl}/debug/runtime`);
     const runtimePayload = await runtimeResponse.json();
     if (runtimePayload.repositoryInfo.frameStoreKind !== "fake") {
       throw new Error(`Expected fake frame store kind, got ${runtimePayload.repositoryInfo.frameStoreKind}`);
     }
-    const commandsResponse = await fetch(`${baseUrl}/debug/issues/${issueNumber}/commands`);
-    const commandsPayload = await commandsResponse.json();
-    if (commandsPayload.commands.length < 4) {
-      throw new Error(`Expected multiline command journal entries, got ${commandsPayload.commands.length}`);
+    if (runtimePayload.repositoryInfo.sessionEventRepositoryKind !== "disabled") {
+      throw new Error(`Expected disabled event repo, got ${runtimePayload.repositoryInfo.sessionEventRepositoryKind}`);
+    }
+    if (runtimePayload.repositoryInfo.sessionCommandRepositoryKind !== "disabled") {
+      throw new Error(`Expected disabled command repo, got ${runtimePayload.repositoryInfo.sessionCommandRepositoryKind}`);
+    }
+    if (runtimePayload.repositoryInfo.sessionFrameRepositoryKind !== "disabled") {
+      throw new Error(`Expected disabled frame repo, got ${runtimePayload.repositoryInfo.sessionFrameRepositoryKind}`);
+    }
+    if (runtimePayload.repositoryInfo.sessionLeaseRepositoryKind !== "disabled") {
+      throw new Error(`Expected disabled lease repo, got ${runtimePayload.repositoryInfo.sessionLeaseRepositoryKind}`);
     }
 
     console.log("e2e-smoke ok");

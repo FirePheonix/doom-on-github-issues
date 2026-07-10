@@ -286,24 +286,8 @@ export function createPersistentEngine(projectRoot) {
   }
 
   const workers = new Map();
-  let disabledUntil = 0;
-  let lastDisableReason = "";
-  const disableOnFailure = (process.env.DOOM_PERSISTENT_ENGINE_DISABLE_ON_FAILURE || "true").trim().toLowerCase() !== "false";
-  const disableCooldownMs = Number(process.env.DOOM_PERSISTENT_ENGINE_DISABLE_COOLDOWN_MS || "300000");
-
-  function maybeDisable(error) {
-    if (!disableOnFailure) {
-      return;
-    }
-    disabledUntil = Date.now() + Math.max(0, disableCooldownMs);
-    lastDisableReason = error instanceof Error ? error.message : String(error);
-  }
 
   async function spawnOrReuse(issueNumber, seed, framePath, history = []) {
-    if (disabledUntil > Date.now()) {
-      throw new Error(`persistent_engine_temporarily_disabled until=${new Date(disabledUntil).toISOString()} reason=${lastDisableReason}`);
-    }
-
     const current = workers.get(issueNumber);
     if (current && !current.worker.isClosed() && current.framePath === framePath) {
       return current.worker;
@@ -331,10 +315,7 @@ export function createPersistentEngine(projectRoot) {
     workers.set(issueNumber, { worker, framePath });
     try {
       await worker.waitUntilReady(worker.startupTimeoutMs);
-      disabledUntil = 0;
-      lastDisableReason = "";
     } catch (error) {
-      maybeDisable(error);
       await worker.shutdown().catch(() => {});
       const latest = workers.get(issueNumber);
       if (latest?.worker === worker) {
@@ -384,8 +365,8 @@ export function createPersistentEngine(projectRoot) {
   }
 
   return {
-    isEnabled: () => disabledUntil <= Date.now(),
-    getDisableReason: () => (disabledUntil > Date.now() ? lastDisableReason : ""),
+    isEnabled: () => true,
+    getDisableReason: () => "",
     startSession,
     restartSession,
     syncHistory,

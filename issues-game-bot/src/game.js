@@ -104,9 +104,6 @@ function getCommandRepeat(input, command) {
   if (Number.isFinite(requested) && requested > 0) {
     return Math.min(12, Math.floor(requested));
   }
-
-  if (command === "a" || command === "d") return 4;
-  if (command === "fire") return 4;
   return 1;
 }
 

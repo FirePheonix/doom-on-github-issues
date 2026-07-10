@@ -1,4 +1,4 @@
-import { createSession, normalizeCommand, stepSession } from "../game.js";
+import { createSession, parseCommentCommands, stepSession } from "../game.js";
 import { getIssueBody, inferBaseUrlFromEnv, postIssueComment } from "../github/issues.js";
 import { ensureDataDir } from "../storage.js";
 import { updateIssueGameView } from "../views/gameView.js";
@@ -24,44 +24,58 @@ async function appendSessionCommandRecords(sessionCommandRepository, issueNumber
     return;
   }
 
-  if (!transition.acceptedCommand) {
-    await sessionCommandRepository.append(issueNumber, {
-      tick: state.tick,
-      commandIndex: 0,
-      commandStatus: "ignored",
-      rawCommand,
-      acceptedCommand: null,
-      reason: "unknown_or_noop",
+  const outcomes = transition.commandOutcomes || [{ rawCommand, ...transition }];
+  const items = [];
+  let commandIndex = 0;
+
+  for (const outcome of outcomes) {
+    if (!outcome.acceptedCommand) {
+      items.push({
+        tick: outcome.tickAfter ?? state.tick,
+        commandIndex: commandIndex++,
+        commandStatus: "ignored",
+        rawCommand: outcome.rawCommand || rawCommand,
+        acceptedCommand: null,
+        reason: "unknown_or_noop",
+        recordedAt: new Date().toISOString()
+      });
+      continue;
+    }
+
+    if (outcome.appliedCommands.length > 0) {
+      for (let i = 0; i < outcome.appliedCommands.length; i += 1) {
+        items.push({
+          tick: (outcome.tickBefore ?? state.tick) + i + 1,
+          commandIndex: commandIndex++,
+          commandStatus: "applied",
+          rawCommand: outcome.rawCommand || rawCommand,
+          acceptedCommand: outcome.appliedCommands[i],
+          repeated: outcome.appliedCommands.length,
+          restarted: outcome.restarted,
+          recordedAt: new Date().toISOString()
+        });
+      }
+      continue;
+    }
+
+    items.push({
+      tick: outcome.tickAfter ?? state.tick,
+      commandIndex: commandIndex++,
+      commandStatus: outcome.restarted ? "restart" : ((state.status === "exited" && outcome.acceptedCommand === "exit") ? "exit" : "accepted"),
+      rawCommand: outcome.rawCommand || rawCommand,
+      acceptedCommand: outcome.acceptedCommand,
+      repeated: 0,
+      restarted: outcome.restarted,
       recordedAt: new Date().toISOString()
     });
+  }
+
+  if (items.length === 1) {
+    await sessionCommandRepository.append(issueNumber, items[0]);
     return;
   }
 
-  if (transition.appliedCommands.length > 0) {
-    const startTick = state.tick - transition.appliedCommands.length + 1;
-    await sessionCommandRepository.appendMany(issueNumber, transition.appliedCommands.map((acceptedCommand, index) => ({
-      tick: startTick + index,
-      commandIndex: index,
-      commandStatus: "applied",
-      rawCommand,
-      acceptedCommand,
-      repeated: transition.appliedCommands.length,
-      restarted: transition.restarted,
-      recordedAt: new Date().toISOString()
-    })));
-    return;
-  }
-
-  await sessionCommandRepository.append(issueNumber, {
-    tick: state.tick,
-    commandIndex: 0,
-    commandStatus: transition.restarted ? "restart" : (state.status === "exited" ? "exit" : "accepted"),
-    rawCommand,
-    acceptedCommand: transition.acceptedCommand,
-    repeated: 0,
-    restarted: transition.restarted,
-    recordedAt: new Date().toISOString()
-  });
+  await sessionCommandRepository.appendMany(issueNumber, items);
 }
 
 export async function startIssueSession({ github, owner, repo, issueNumber, originalBody, req, projectRoot, frameStore, sessionRepository, sessionEventRepository, sessionCommandRepository, sessionFrameRepository, sessionManager }) {
@@ -182,10 +196,11 @@ export async function applyIssueCommentCommand({
     await sessionRepository.loadOptional(issueNumber) ||
     createSession(issueNumber);
 
-  const command = normalizeCommand(commentBody);
+  const parsedCommands = parseCommentCommands(commentBody);
+  const hasRestart = parsedCommands.some((entry) => entry.acceptedCommand === "restart");
   state.issueState = issueState || state.issueState || "open";
 
-  if (command !== "restart" && isSessionInactive(state, inactivityMs) && state.status === "active") {
+  if (!hasRestart && isSessionInactive(state, inactivityMs) && state.status === "active") {
     state.status = "exited";
     state.inactivityNotifiedAt = new Date().toISOString();
     state.log = [`Game exited after ${Math.floor(inactivityMs / 60000)} minutes of inactivity.`];
@@ -211,7 +226,7 @@ export async function applyIssueCommentCommand({
     return;
   }
 
-  if ((state.status === "inactive" || state.status === "exited" || state.status === "closed") && command !== "restart") {
+  if ((state.status === "inactive" || state.status === "exited" || state.status === "closed") && !hasRestart) {
     await postPauseNoticeOnce({
       github,
       owner,
@@ -227,7 +242,7 @@ export async function applyIssueCommentCommand({
     return;
   }
 
-  if (state.issueState === "closed" && command !== "restart") {
+  if (state.issueState === "closed" && !hasRestart) {
     await postPauseNoticeOnce({
       github,
       owner,
@@ -245,23 +260,26 @@ export async function applyIssueCommentCommand({
 
   const transition = stepSession(state, commentBody);
   await appendSessionCommandRecords(sessionCommandRepository, issueNumber, commentBody, transition, state);
-  if (transition.acceptedCommand) {
-    await appendSessionEvent(sessionEventRepository, issueNumber, {
-      type: "command.applied",
-      rawCommand: commentBody,
-      acceptedCommand: transition.acceptedCommand,
-      repeated: transition.appliedCommands.length,
-      restarted: transition.restarted,
-      tickBefore: state.tick - transition.appliedCommands.length,
-      tickAfter: state.tick
-    });
-  } else if (commentBody?.trim()) {
-    await appendSessionEvent(sessionEventRepository, issueNumber, {
-      type: "command.ignored",
-      rawCommand: commentBody,
-      reason: "unknown_or_noop",
-      tick: state.tick
-    });
+  for (const outcome of transition.commandOutcomes || []) {
+    if (outcome.acceptedCommand) {
+      await appendSessionEvent(sessionEventRepository, issueNumber, {
+        type: "command.applied",
+        rawCommand: outcome.rawCommand,
+        acceptedCommand: outcome.acceptedCommand,
+        appliedCommands: outcome.appliedCommands,
+        repeated: outcome.appliedCommands.length,
+        restarted: outcome.restarted,
+        tickBefore: outcome.tickBefore,
+        tickAfter: outcome.tickAfter
+      });
+    } else if (outcome.rawCommand?.trim()) {
+      await appendSessionEvent(sessionEventRepository, issueNumber, {
+        type: "command.ignored",
+        rawCommand: outcome.rawCommand,
+        reason: "unknown_or_noop",
+        tick: outcome.tickAfter ?? state.tick
+      });
+    }
   }
   if (state.status === "exited") {
     await sessionManager?.stopSession?.(issueNumber, "exited");

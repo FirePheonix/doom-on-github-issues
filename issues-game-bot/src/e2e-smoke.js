@@ -352,6 +352,28 @@ async function main() {
       return body.includes("- tick: 1") && body.includes("Applied command: w");
     });
 
+    await postWebhook(baseUrl, config.webhookSecret, "issue_comment", {
+      action: "created",
+      repository: {
+        owner: { login: process.env.GITHUB_OWNER },
+        name: process.env.GITHUB_REPO
+      },
+      issue: {
+        number: issueNumber,
+        body: github.issueBodies.get(issueNumber) || "Smoke body",
+        state: "open"
+      },
+      comment: {
+        body: "w\nw\nr 1",
+        user: { type: "User" }
+      }
+    });
+
+    await waitFor(() => {
+      const body = github.issueBodies.get(issueNumber) || "";
+      return body.includes("- tick: 4") && body.includes("Applied command: d");
+    });
+
     await postWebhook(baseUrl, config.webhookSecret, "issues", {
       action: "closed",
       repository: {
@@ -402,8 +424,8 @@ async function main() {
     }
     const commandsResponse = await fetch(`${baseUrl}/debug/issues/${issueNumber}/commands`);
     const commandsPayload = await commandsResponse.json();
-    if (commandsPayload.commands.length === 0) {
-      throw new Error("Expected command journal entries");
+    if (commandsPayload.commands.length < 4) {
+      throw new Error(`Expected multiline command journal entries, got ${commandsPayload.commands.length}`);
     }
 
     console.log("e2e-smoke ok");

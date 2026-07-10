@@ -48,12 +48,31 @@ export function normalizeCommand(input) {
     down: "s",
     left: "a",
     right: "d",
+    r: "d",
     shoot: "fire",
     space: "fire",
     escape: "esc"
   };
   const normalized = aliases[token] || token;
   return ALLOWED_COMMANDS.has(normalized) ? normalized : null;
+}
+
+export function splitCommandLines(input) {
+  if (!input) {
+    return [];
+  }
+
+  return String(input)
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+export function parseCommentCommands(input) {
+  return splitCommandLines(input).map((rawCommand) => ({
+    rawCommand,
+    acceptedCommand: normalizeCommand(rawCommand)
+  }));
 }
 
 function getCommandRepeat(input, command) {
@@ -74,31 +93,32 @@ function restartInPlace(state) {
   state.log.unshift("Session restarted.");
 }
 
-export function stepSession(state, rawCommand) {
+function applySingleCommand(state, rawCommand) {
   const command = normalizeCommand(rawCommand);
+  const tickBefore = state.tick;
 
   if (rawCommand && !command) {
     state.log.unshift(`Unknown command: ${rawCommand.trim().split(/\s+/)[0]}`);
     state.log = state.log.slice(0, 8);
-    return { state, acceptedCommand: null, appliedCommands: [], restarted: false };
+    return { state, acceptedCommand: null, appliedCommands: [], restarted: false, tickBefore, tickAfter: state.tick };
   }
 
   if (!command) {
-    return { state, acceptedCommand: null, appliedCommands: [], restarted: false };
+    return { state, acceptedCommand: null, appliedCommands: [], restarted: false, tickBefore, tickAfter: state.tick };
   }
 
   if (command === "help") {
     state.log.unshift("Commands: w a s d fire enter exit restart help");
     state.lastActivityAt = new Date().toISOString();
     state.log = state.log.slice(0, 8);
-    return { state, acceptedCommand: command, appliedCommands: [], restarted: false };
+    return { state, acceptedCommand: command, appliedCommands: [], restarted: false, tickBefore, tickAfter: state.tick };
   }
 
   if (command === "restart") {
     restartInPlace(state);
     state.lastActivityAt = new Date().toISOString();
     state.log = state.log.slice(0, 8);
-    return { state, acceptedCommand: command, appliedCommands: [], restarted: true };
+    return { state, acceptedCommand: command, appliedCommands: [], restarted: true, tickBefore, tickAfter: state.tick };
   }
 
   if (command === "exit" || command === "quit") {
@@ -106,7 +126,7 @@ export function stepSession(state, rawCommand) {
     state.lastActivityAt = new Date().toISOString();
     state.log.unshift("Game exited. Comment `restart` to start a new run.");
     state.log = state.log.slice(0, 8);
-    return { state, acceptedCommand: command, appliedCommands: [], restarted: false };
+    return { state, acceptedCommand: command, appliedCommands: [], restarted: false, tickBefore, tickAfter: state.tick };
   }
 
   const repeat = getCommandRepeat(rawCommand, command);
@@ -120,7 +140,54 @@ export function stepSession(state, rawCommand) {
   state.inactivityNotifiedAt = null;
   state.log.unshift(`Applied command: ${command}${repeat > 1 ? ` x${repeat}` : ""}`);
   state.log = state.log.slice(0, 8);
-  return { state, acceptedCommand: command, appliedCommands, restarted: false };
+  return { state, acceptedCommand: command, appliedCommands, restarted: false, tickBefore, tickAfter: state.tick };
+}
+
+export function stepSession(state, rawCommand) {
+  const lines = splitCommandLines(rawCommand);
+  if (lines.length <= 1) {
+    const single = applySingleCommand(state, rawCommand);
+    return {
+      ...single,
+      acceptedCommands: single.acceptedCommand ? [single.acceptedCommand] : [],
+      commandOutcomes: [{ rawCommand, ...single }]
+    };
+  }
+
+  const acceptedCommands = [];
+  const appliedCommands = [];
+  const commandOutcomes = [];
+  let acceptedCommand = null;
+  let restarted = false;
+
+  for (const line of lines) {
+    const outcome = applySingleCommand(state, line);
+    commandOutcomes.push({ rawCommand: line, ...outcome });
+    if (outcome.acceptedCommand) {
+      acceptedCommands.push(outcome.acceptedCommand);
+      acceptedCommand = acceptedCommand || outcome.acceptedCommand;
+    }
+    if (outcome.appliedCommands.length > 0) {
+      appliedCommands.push(...outcome.appliedCommands);
+    }
+    if (outcome.restarted) {
+      restarted = true;
+    }
+    if (state.status === "exited" || state.status === "closed") {
+      break;
+    }
+  }
+
+  return {
+    state,
+    acceptedCommand,
+    acceptedCommands,
+    appliedCommands,
+    restarted,
+    commandOutcomes,
+    tickBefore: commandOutcomes[0]?.tickBefore ?? state.tick,
+    tickAfter: state.tick
+  };
 }
 
 export function summarizeState(state) {

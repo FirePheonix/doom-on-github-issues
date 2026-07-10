@@ -68,8 +68,25 @@ export function splitCommandLines(input) {
     .filter(Boolean);
 }
 
+function expandCompactCommandLine(line) {
+  const normalized = String(line || "").trim().toLowerCase();
+  if (!normalized || /\s/.test(normalized) || normalized.length <= 1) {
+    return [line];
+  }
+
+  if (/^[wasdr]+$/.test(normalized)) {
+    return normalized.split("");
+  }
+
+  return [line];
+}
+
+export function expandCommentCommands(input) {
+  return splitCommandLines(input).flatMap((line) => expandCompactCommandLine(line));
+}
+
 export function parseCommentCommands(input) {
-  return splitCommandLines(input).map((rawCommand) => ({
+  return expandCommentCommands(input).map((rawCommand) => ({
     rawCommand,
     acceptedCommand: normalizeCommand(rawCommand)
   }));
@@ -144,7 +161,7 @@ function applySingleCommand(state, rawCommand) {
 }
 
 export function stepSession(state, rawCommand) {
-  const lines = splitCommandLines(rawCommand);
+  const lines = expandCommentCommands(rawCommand);
   if (lines.length <= 1) {
     const single = applySingleCommand(state, rawCommand);
     return {

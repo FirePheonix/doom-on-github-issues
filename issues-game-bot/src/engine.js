@@ -15,7 +15,6 @@ function isFalsy(value) {
 
 function readPersistentEngineConfig() {
   const rawMode = String(process.env.DOOM_PERSISTENT_ENGINE || "auto").trim().toLowerCase();
-  const backend = String(process.env.DOOM_ENGINE || "doomgeneric").trim().toLowerCase();
 
   if (isTruthy(rawMode)) {
     return {
@@ -28,13 +27,6 @@ function readPersistentEngineConfig() {
     return {
       enabled: false,
       reason: `env_disabled value=${rawMode || "false"}`
-    };
-  }
-
-  if (backend === "doomgeneric") {
-    return {
-      enabled: false,
-      reason: `auto_disabled backend=${backend}`
     };
   }
 
@@ -97,6 +89,7 @@ function createPersistentSessionWorker({ projectRoot, issueNumber, framePath, se
   let stdoutBuffer = "";
   let nextId = 1;
   let closed = false;
+  let ready = false;
   let chain = Promise.resolve();
   const pending = new Map();
   const requestTimeoutMs = Number(process.env.DOOM_SESSION_WORKER_TIMEOUT_MS || "20000");
@@ -105,6 +98,27 @@ function createPersistentSessionWorker({ projectRoot, issueNumber, framePath, se
     process.env.DOOM_SESSION_WORKER_TIMEOUT_MS ||
     "60000"
   );
+  let resolveReady = null;
+  let rejectReady = null;
+  const readyPromise = new Promise((resolve, reject) => {
+    resolveReady = resolve;
+    rejectReady = reject;
+  });
+
+  function markReady() {
+    if (ready) {
+      return;
+    }
+    ready = true;
+    resolveReady?.();
+  }
+
+  function failReady(error) {
+    if (ready) {
+      return;
+    }
+    rejectReady?.(error);
+  }
 
   function rejectPending(error) {
     for (const item of pending.values()) {
@@ -121,6 +135,10 @@ function createPersistentSessionWorker({ projectRoot, issueNumber, framePath, se
     for (const line of lines) {
       const text = line.trim();
       if (!text) continue;
+      if (text === "READY") {
+        markReady();
+        continue;
+      }
       let payload;
       try {
         payload = JSON.parse(text);
@@ -149,6 +167,7 @@ function createPersistentSessionWorker({ projectRoot, issueNumber, framePath, se
 
   child.on("error", (error) => {
     closed = true;
+    failReady(error);
     rejectPending(error);
     onExit?.(error);
   });
@@ -158,9 +177,31 @@ function createPersistentSessionWorker({ projectRoot, issueNumber, framePath, se
     const error = new Error(
       `doom_session_worker exited for issue ${issueNumber} with code ${code}: ${stderrTail.trim()}`
     );
+    failReady(error);
     rejectPending(error);
     onExit?.(error);
   });
+
+  function waitUntilReady(timeoutMs = startupTimeoutMs) {
+    if (ready) {
+      return Promise.resolve();
+    }
+
+    return Promise.race([
+      readyPromise,
+      new Promise((_, reject) => {
+        const timeout = setTimeout(() => {
+          const stderrInfo = stderrTail.trim() ? ` stderr=${JSON.stringify(stderrTail.trim())}` : "";
+          reject(new Error(`session_worker_ready_timeout issue=${issueNumber} after ${timeoutMs}ms${stderrInfo}`));
+        }, timeoutMs);
+
+        readyPromise.then(
+          () => clearTimeout(timeout),
+          () => clearTimeout(timeout)
+        );
+      })
+    ]);
+  }
 
   function request(type, payload = {}, options = {}) {
     if (closed) {
@@ -224,6 +265,8 @@ function createPersistentSessionWorker({ projectRoot, issueNumber, framePath, se
     request,
     shutdown,
     isClosed: () => closed,
+    isReady: () => ready,
+    waitUntilReady,
     startupTimeoutMs
   };
 }
@@ -287,10 +330,7 @@ export function createPersistentEngine(projectRoot) {
 
     workers.set(issueNumber, { worker, framePath });
     try {
-      await worker.request("snapshot", {}, { timeoutMs: worker.startupTimeoutMs });
-      if (history.length > 0) {
-        await worker.request("step", { commands: history }, { timeoutMs: worker.startupTimeoutMs });
-      }
+      await worker.waitUntilReady(worker.startupTimeoutMs);
       disabledUntil = 0;
       lastDisableReason = "";
     } catch (error) {
@@ -306,12 +346,22 @@ export function createPersistentEngine(projectRoot) {
   }
 
   async function startSession(issueNumber, seed, framePath) {
-    await spawnOrReuse(issueNumber, seed, framePath, []);
+    const worker = await spawnOrReuse(issueNumber, seed, framePath, []);
+    await worker.request("snapshot", {}, { timeoutMs: worker.startupTimeoutMs });
   }
 
   async function restartSession(issueNumber, seed, framePath) {
     await stopSession(issueNumber);
-    await spawnOrReuse(issueNumber, seed, framePath, []);
+    await startSession(issueNumber, seed, framePath);
+  }
+
+  async function syncHistory(issueNumber, seed, framePath, history = []) {
+    await stopSession(issueNumber);
+    const worker = await spawnOrReuse(issueNumber, seed, framePath, []);
+    await worker.request("snapshot", {}, { timeoutMs: worker.startupTimeoutMs });
+    if (Array.isArray(history) && history.length > 0) {
+      await worker.request("step", { commands: history }, { timeoutMs: worker.startupTimeoutMs });
+    }
   }
 
   async function applyCommands(issueNumber, seed, framePath, historyPrefix, commands) {
@@ -338,6 +388,7 @@ export function createPersistentEngine(projectRoot) {
     getDisableReason: () => (disabledUntil > Date.now() ? lastDisableReason : ""),
     startSession,
     restartSession,
+    syncHistory,
     applyCommands,
     stopSession,
     invalidate

@@ -181,9 +181,10 @@ Required vars:
 - Optional: `DOOM_BOOT_DELAY_MS=0` (delay before the background live-session boot job starts; keep at `0` unless you deliberately want slower issue-open fanout)
 - Optional: `DOOM_MODE=demons|classic` (default `demons`; use `classic` to attempt IWAD startup path)
 - Optional: `DOOM_ENGINE=doomgeneric|vizdoom` (default `doomgeneric`, falls back to vizdoom if startup fails)
-- Optional: `DOOM_PERSISTENT_ENGINE=auto|true|false` (default `auto`; auto keeps the persistent worker off for `doomgeneric` to avoid startup stalls, set `true` only when you know the deploy can keep the long-lived worker healthy)
+- Optional: `DOOM_PERSISTENT_ENGINE=auto|true|false` (default `auto`; auto now keeps the persistent worker enabled and primes it behind cached boot/menu frames so later comments can stay on DoomGeneric without first-comment startup stalls)
 - Optional: `DOOM_SESSION_WORKER_TIMEOUT_MS=20000` (normal persistent-worker request timeout)
 - Optional: `DOOM_SESSION_WORKER_STARTUP_TIMEOUT_MS=60000` (longer timeout for initial persistent-worker boot/snapshot)
+- Optional: `DOOM_SESSION_WORKER_READY_TIMEOUT_MS=10000` (how long the Python wrapper waits for the DoomGeneric session binary to emit `READY` after warmup)
 - Optional: `DOOM_INACTIVITY_MS=300000` (session manager exits the game after 5 minutes of inactivity)
 - Optional boot-frame latency controls:
   - `DOOM_BOOT_FRAME_CACHE=true` (publish a cached placeholder frame immediately on issue open)
@@ -213,6 +214,7 @@ Required vars:
 - Remote frame objects are now written to tick-versioned keys, which avoids stale loading and early-action images caused by overwriting the same object path.
 - Issue-open now publishes a cached boot frame immediately, then swaps to the real first frame once the live session is ready.
 - Common early menu histories now have a local startup-frame cache fast path, which avoids live render work for the first few menu-selection screens.
+- Those cached early states now also prime the DoomGeneric persistent worker in the background so the first uncached comment can reuse a hot live session instead of discovering worker startup at comment time.
 - When S3 is enabled, those cached menu frames can also be published once to a shared deterministic S3 prefix, which lets repeated early menu states reuse one public object URL instead of re-uploading a fresh frame each time.
 - Session transitions are recorded in an append-only event journal for debugging and future replay.
 - Applied commands, session leases, and published frame metadata now have dedicated operational repositories instead of living only inside `session_json`.

@@ -252,6 +252,7 @@ int main(int argc, char** argv)
     }
 
     setvbuf(stdout, NULL, _IOLBF, 0);
+    printf("READY\n");
     char line[4096];
 
     while (fgets(line, sizeof(line), stdin))

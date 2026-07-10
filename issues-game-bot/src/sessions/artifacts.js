@@ -15,6 +15,9 @@ export async function persistSessionArtifacts({
   const framePath = getFramePath(issueNumber);
   sessionManager?.rememberState?.(issueNumber, state, framePath);
   const supportsLiveRendering = sessionManager?.supportsLiveRendering?.() ?? false;
+  const primeLiveSession = () => {
+    sessionManager?.primeSession?.(issueNumber, state.seed, framePath, state.history);
+  };
 
   try {
     const renderStartedMs = Date.now();
@@ -26,6 +29,7 @@ export async function persistSessionArtifacts({
       frameStore
     });
     if (cachedMenuFrame) {
+      primeLiveSession();
       console.log(`issue=${issueNumber} render_done ms=${Date.now() - renderStartedMs} cache_hit=true`);
       console.log(`issue=${issueNumber} publish_done ms=0 cache_hit=true`);
       return {
@@ -42,6 +46,7 @@ export async function persistSessionArtifacts({
       const publishStartedMs = Date.now();
       await frameStore.publish(issueNumber, state.tick, framePath);
       console.log(`issue=${issueNumber} publish_done ms=${Date.now() - publishStartedMs} cache_hit=false`);
+      primeLiveSession();
       return {
         imageUrlOverride: ""
       };
@@ -88,7 +93,7 @@ export async function persistSessionArtifacts({
     };
   } catch (error) {
     console.error(`Persistent engine path failed for issue ${issueNumber}; falling back to replay renderer`, error);
-    if (sessionManager?.invalidate) {
+    if (sessionManager?.invalidate && !(error instanceof Error && error.message.startsWith("persistent_engine_not_ready"))) {
       await sessionManager.invalidate(issueNumber);
     }
     const renderStartedMs = Date.now();
@@ -97,6 +102,7 @@ export async function persistSessionArtifacts({
     const publishStartedMs = Date.now();
     await frameStore.publish(issueNumber, state.tick, framePath);
     console.log(`issue=${issueNumber} publish_done ms=${Date.now() - publishStartedMs} cache_hit=false`);
+    primeLiveSession();
     return {
       imageUrlOverride: ""
     };

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import os
+import selectors
 import subprocess
 import sys
 from pathlib import Path
@@ -158,6 +159,10 @@ class SessionWorker:
     def shutdown(self) -> None:
         self.backend.shutdown()
 
+    def wait_ready(self) -> None:
+        if hasattr(self.backend, "wait_ready"):
+            self.backend.wait_ready()
+
 
 class VizDoomSession:
     def __init__(self, out_png: Path, seed: int):
@@ -217,6 +222,31 @@ class DoomGenericSession:
         )
         self.out_png = out_png
         self.ppm_path = out_png.with_suffix(".ppm")
+        self._ready = False
+
+    def wait_ready(self) -> None:
+        if self._ready:
+            return
+        if not self.proc.stdout:
+            raise RuntimeError("doomgeneric session process stdout unavailable")
+
+        timeout_ms = int(os.getenv("DOOM_SESSION_WORKER_READY_TIMEOUT_MS", "10000"))
+        selector = selectors.DefaultSelector()
+        try:
+            selector.register(self.proc.stdout, selectors.EVENT_READ)
+            events = selector.select(timeout_ms / 1000)
+            if not events:
+                raise RuntimeError(f"doomgeneric session READY timeout after {timeout_ms}ms")
+            line = self.proc.stdout.readline()
+        finally:
+            selector.close()
+
+        if not line:
+            err = self.proc.stderr.read() if self.proc.stderr else ""
+            raise RuntimeError(f"doomgeneric session process ended before READY: {err}")
+        if line.strip() != "READY":
+            raise RuntimeError(f"doomgeneric session unexpected READY response: {line.strip()}")
+        self._ready = True
 
     def _roundtrip(self, line: str) -> None:
         if not self.proc.stdin or not self.proc.stdout:
@@ -261,6 +291,8 @@ def main() -> int:
     out_png = Path(sys.argv[1])
     seed = int(sys.argv[2])
     worker = SessionWorker(out_png, seed)
+    worker.wait_ready()
+    print("READY", flush=True)
 
     try:
         for raw in sys.stdin:

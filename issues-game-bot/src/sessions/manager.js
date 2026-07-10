@@ -8,6 +8,10 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     return structuredClone(state);
   }
 
+  function historyKey(history) {
+    return JSON.stringify(Array.isArray(history) ? history : []);
+  }
+
   function getRecord(issueNumber) {
     return records.get(issueNumber) || null;
   }
@@ -88,6 +92,11 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
       stateSnapshot: null,
       lastTouchedAt: new Date().toISOString(),
       source: "live",
+      liveHistoryKey: historyKey([]),
+      liveHistoryLength: 0,
+      liveSyncTargetKey: "",
+      liveSyncPromise: null,
+      liveSyncError: "",
       expiresAt: null,
       expiring: false,
       timer: null
@@ -112,6 +121,49 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     }
   }
 
+  function primeSession(issueNumber, seed, framePath, history = []) {
+    if (!engine.isEnabled()) {
+      return;
+    }
+
+    const record = ensureRecord(issueNumber, seed, framePath);
+    const nextHistoryKey = historyKey(history);
+    if (record.liveHistoryKey === nextHistoryKey && !record.liveSyncPromise) {
+      return;
+    }
+    if (record.liveSyncPromise && record.liveSyncTargetKey === nextHistoryKey) {
+      return;
+    }
+
+    const previousTask = record.liveSyncPromise
+      ? record.liveSyncPromise.catch(() => {})
+      : Promise.resolve();
+    record.liveSyncTargetKey = nextHistoryKey;
+    record.liveSyncError = "";
+    const task = previousTask.then(() => engine.syncHistory(issueNumber, seed, framePath, history))
+      .then(() => {
+        const current = records.get(issueNumber);
+        if (!current || current.liveSyncPromise !== task) {
+          return;
+        }
+        current.liveHistoryKey = nextHistoryKey;
+        current.liveHistoryLength = Array.isArray(history) ? history.length : 0;
+        current.liveSyncTargetKey = "";
+        current.liveSyncPromise = null;
+        current.liveSyncError = "";
+        current.source = "live";
+      })
+      .catch((error) => {
+        const current = records.get(issueNumber);
+        if (!current || current.liveSyncPromise !== task) {
+          return;
+        }
+        current.liveSyncPromise = null;
+        current.liveSyncError = error instanceof Error ? error.message : String(error);
+      });
+    record.liveSyncPromise = task;
+  }
+
   function getState(issueNumber) {
     const record = records.get(issueNumber);
     if (!record?.stateSnapshot) {
@@ -125,6 +177,11 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     record.status = "active";
     await engine.startSession(issueNumber, seed, framePath);
     record.source = "live";
+    record.liveHistoryKey = historyKey([]);
+    record.liveHistoryLength = 0;
+    record.liveSyncTargetKey = "";
+    record.liveSyncPromise = null;
+    record.liveSyncError = "";
     armTimer(issueNumber);
   }
 
@@ -133,14 +190,32 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     record.status = "active";
     await engine.restartSession(issueNumber, seed, framePath);
     record.source = "live";
+    record.liveHistoryKey = historyKey([]);
+    record.liveHistoryLength = 0;
+    record.liveSyncTargetKey = "";
+    record.liveSyncPromise = null;
+    record.liveSyncError = "";
     armTimer(issueNumber);
   }
 
   async function applyCommands(issueNumber, seed, framePath, historyPrefix, commands) {
     const record = ensureRecord(issueNumber, seed, framePath);
     record.status = "active";
+    const expectedHistoryKey = historyKey(historyPrefix);
+    if (record.liveSyncPromise) {
+      throw new Error(`persistent_engine_not_ready syncing expected_len=${Array.isArray(historyPrefix) ? historyPrefix.length : 0}`);
+    }
+    if (record.liveHistoryKey !== expectedHistoryKey) {
+      throw new Error(
+        `persistent_engine_not_ready synced_len=${record.liveHistoryLength} expected_len=${Array.isArray(historyPrefix) ? historyPrefix.length : 0}`
+      );
+    }
     if (Array.isArray(commands) && commands.length > 0) {
       await engine.applyCommands(issueNumber, seed, framePath, historyPrefix, commands);
+      const nextHistory = [...(Array.isArray(historyPrefix) ? historyPrefix : []), ...commands];
+      record.liveHistoryKey = historyKey(nextHistory);
+      record.liveHistoryLength = nextHistory.length;
+      record.liveSyncError = "";
     }
     record.source = "live";
     armTimer(issueNumber);
@@ -177,6 +252,7 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     const record = records.get(issueNumber);
     if (record) {
       clearTimer(record);
+      record.liveSyncPromise = null;
       records.delete(issueNumber);
     }
     await engine.invalidate(issueNumber);
@@ -215,6 +291,7 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
   return {
     supportsLiveRendering: () => engine.isEnabled(),
     getLiveRenderDisableReason: () => engine.getDisableReason?.() || "",
+    primeSession,
     startSession,
     restartSession,
     applyCommands,

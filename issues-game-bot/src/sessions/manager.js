@@ -93,8 +93,10 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
       stateSnapshot: null,
       lastTouchedAt: new Date().toISOString(),
       source: "live",
+      liveHistory: [],
       liveHistoryKey: historyKey([]),
       liveHistoryLength: 0,
+      liveSyncTargetHistory: [],
       liveSyncTargetKey: "",
       liveSyncPromise: null,
       liveSyncError: "",
@@ -122,6 +124,13 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     }
   }
 
+  function isHistoryPrefix(prefix, history) {
+    if (!Array.isArray(prefix) || !Array.isArray(history) || prefix.length > history.length) {
+      return false;
+    }
+    return prefix.every((command, index) => history[index] === command);
+  }
+
   function primeSession(issueNumber, seed, framePath, history = []) {
     if (!engine.isEnabled()) {
       return;
@@ -139,16 +148,39 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     const previousTask = record.liveSyncPromise
       ? record.liveSyncPromise.catch(() => {})
       : Promise.resolve();
+    const targetHistory = Array.isArray(history) ? [...history] : [];
+    const baseHistory = record.liveSyncPromise
+      ? [...record.liveSyncTargetHistory]
+      : [...record.liveHistory];
     record.liveSyncTargetKey = nextHistoryKey;
+    record.liveSyncTargetHistory = targetHistory;
     record.liveSyncError = "";
-    const task = previousTask.then(() => engine.syncHistory(issueNumber, seed, framePath, history))
+    const task = previousTask.then(async () => {
+      if (targetHistory.length === 0) {
+        await engine.startSession(issueNumber, seed, framePath);
+        return;
+      }
+
+      if (isHistoryPrefix(baseHistory, targetHistory)) {
+        const suffix = targetHistory.slice(baseHistory.length);
+        if (suffix.length === 0) {
+          return;
+        }
+        await engine.applyCommands(issueNumber, seed, framePath, baseHistory, suffix);
+        return;
+      }
+
+      await engine.syncHistory(issueNumber, seed, framePath, targetHistory);
+    })
       .then(() => {
         const current = records.get(issueNumber);
         if (!current || current.liveSyncPromise !== task) {
           return;
         }
+        current.liveHistory = targetHistory;
         current.liveHistoryKey = nextHistoryKey;
-        current.liveHistoryLength = Array.isArray(history) ? history.length : 0;
+        current.liveHistoryLength = targetHistory.length;
+        current.liveSyncTargetHistory = [];
         current.liveSyncTargetKey = "";
         current.liveSyncPromise = null;
         current.liveSyncError = "";
@@ -159,6 +191,7 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
         if (!current || current.liveSyncPromise !== task) {
           return;
         }
+        current.liveSyncTargetHistory = [];
         current.liveSyncPromise = null;
         current.liveSyncError = error instanceof Error ? error.message : String(error);
       });
@@ -195,8 +228,10 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     record.status = "active";
     await engine.startSession(issueNumber, seed, framePath);
     record.source = "live";
+    record.liveHistory = [];
     record.liveHistoryKey = historyKey([]);
     record.liveHistoryLength = 0;
+    record.liveSyncTargetHistory = [];
     record.liveSyncTargetKey = "";
     record.liveSyncPromise = null;
     record.liveSyncError = "";
@@ -208,8 +243,10 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     record.status = "active";
     await engine.restartSession(issueNumber, seed, framePath);
     record.source = "live";
+    record.liveHistory = [];
     record.liveHistoryKey = historyKey([]);
     record.liveHistoryLength = 0;
+    record.liveSyncTargetHistory = [];
     record.liveSyncTargetKey = "";
     record.liveSyncPromise = null;
     record.liveSyncError = "";
@@ -231,6 +268,7 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     if (Array.isArray(commands) && commands.length > 0) {
       await engine.applyCommands(issueNumber, seed, framePath, historyPrefix, commands);
       const nextHistory = [...(Array.isArray(historyPrefix) ? historyPrefix : []), ...commands];
+      record.liveHistory = nextHistory;
       record.liveHistoryKey = historyKey(nextHistory);
       record.liveHistoryLength = nextHistory.length;
       record.liveSyncError = "";
@@ -270,6 +308,8 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     const record = records.get(issueNumber);
     if (record) {
       clearTimer(record);
+      record.liveHistory = [];
+      record.liveSyncTargetHistory = [];
       record.liveSyncPromise = null;
       records.delete(issueNumber);
     }

@@ -14,6 +14,7 @@ export async function persistSessionArtifacts({
   const sessionPath = getSessionPath(issueNumber);
   const framePath = getFramePath(issueNumber);
   sessionManager?.rememberState?.(issueNumber, state, framePath);
+  const supportsLiveRendering = sessionManager?.supportsLiveRendering?.() ?? false;
 
   try {
     const renderStartedMs = Date.now();
@@ -32,9 +33,12 @@ export async function persistSessionArtifacts({
       };
     }
 
-    if (!sessionManager) {
+    if (!sessionManager || !supportsLiveRendering) {
       await renderEngineFrame(projectRoot, sessionPath, framePath);
-      console.log(`issue=${issueNumber} render_done ms=${Date.now() - renderStartedMs} cache_hit=false mode=replay`);
+      const liveRenderReason = !sessionManager
+        ? "no_session_manager"
+        : (sessionManager.getLiveRenderDisableReason?.() || "persistent_engine_disabled");
+      console.log(`issue=${issueNumber} render_done ms=${Date.now() - renderStartedMs} cache_hit=false mode=replay reason=${liveRenderReason}`);
       const publishStartedMs = Date.now();
       await frameStore.publish(issueNumber, state.tick, framePath);
       console.log(`issue=${issueNumber} publish_done ms=${Date.now() - publishStartedMs} cache_hit=false`);

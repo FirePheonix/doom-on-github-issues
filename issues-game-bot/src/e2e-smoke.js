@@ -46,6 +46,12 @@ function createFakeSessionManager() {
   }
 
   return {
+    supportsLiveRendering() {
+      return true;
+    },
+    getLiveRenderDisableReason() {
+      return "";
+    },
     async startSession(issueNumber, _seed, framePath) {
       ensure(issueNumber, framePath).state = "active";
     },

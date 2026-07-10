@@ -5,6 +5,45 @@ function getPythonBin() {
   return process.env.PYTHON_BIN || "python";
 }
 
+function isTruthy(value) {
+  return ["1", "true", "yes", "on", "enabled"].includes(String(value || "").trim().toLowerCase());
+}
+
+function isFalsy(value) {
+  return ["0", "false", "no", "off", "disabled"].includes(String(value || "").trim().toLowerCase());
+}
+
+function readPersistentEngineConfig() {
+  const rawMode = String(process.env.DOOM_PERSISTENT_ENGINE || "auto").trim().toLowerCase();
+  const backend = String(process.env.DOOM_ENGINE || "doomgeneric").trim().toLowerCase();
+
+  if (isTruthy(rawMode)) {
+    return {
+      enabled: true,
+      reason: ""
+    };
+  }
+
+  if (isFalsy(rawMode)) {
+    return {
+      enabled: false,
+      reason: `env_disabled value=${rawMode || "false"}`
+    };
+  }
+
+  if (backend === "doomgeneric") {
+    return {
+      enabled: false,
+      reason: `auto_disabled backend=${backend}`
+    };
+  }
+
+  return {
+    enabled: true,
+    reason: ""
+  };
+}
+
 function runProcess(cmd, args, cwd) {
   return new Promise((resolve, reject) => {
     const child = spawn(cmd, args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
@@ -190,6 +229,19 @@ function createPersistentSessionWorker({ projectRoot, issueNumber, framePath, se
 }
 
 export function createPersistentEngine(projectRoot) {
+  const config = readPersistentEngineConfig();
+  if (!config.enabled) {
+    return {
+      isEnabled: () => false,
+      getDisableReason: () => config.reason,
+      startSession: async () => {},
+      restartSession: async () => {},
+      applyCommands: async () => {},
+      stopSession: async () => {},
+      invalidate: async () => {}
+    };
+  }
+
   const workers = new Map();
   let disabledUntil = 0;
   let lastDisableReason = "";
@@ -282,6 +334,8 @@ export function createPersistentEngine(projectRoot) {
   }
 
   return {
+    isEnabled: () => disabledUntil <= Date.now(),
+    getDisableReason: () => (disabledUntil > Date.now() ? lastDisableReason : ""),
     startSession,
     restartSession,
     applyCommands,

@@ -213,6 +213,8 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
   }
 
   return {
+    supportsLiveRendering: () => engine.isEnabled(),
+    getLiveRenderDisableReason: () => engine.getDisableReason?.() || "",
     startSession,
     restartSession,
     applyCommands,

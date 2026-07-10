@@ -181,6 +181,7 @@ Required vars:
 - Optional: `DOOM_BOOT_DELAY_MS=0` (delay before the background live-session boot job starts; keep at `0` unless you deliberately want slower issue-open fanout)
 - Optional: `DOOM_MODE=demons|classic` (default `demons`; use `classic` to attempt IWAD startup path)
 - Optional: `DOOM_ENGINE=doomgeneric|vizdoom` (default `doomgeneric`, falls back to vizdoom if startup fails)
+- Optional: `DOOM_PERSISTENT_ENGINE=auto|true|false` (default `auto`; auto keeps the persistent worker off for `doomgeneric` to avoid startup stalls, set `true` only when you know the deploy can keep the long-lived worker healthy)
 - Optional: `DOOM_SESSION_WORKER_TIMEOUT_MS=20000` (normal persistent-worker request timeout)
 - Optional: `DOOM_SESSION_WORKER_STARTUP_TIMEOUT_MS=60000` (longer timeout for initial persistent-worker boot/snapshot)
 - Optional: `DOOM_INACTIVITY_MS=300000` (session manager exits the game after 5 minutes of inactivity)

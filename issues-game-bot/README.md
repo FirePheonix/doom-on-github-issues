@@ -191,10 +191,6 @@ Required vars:
   - `DOOM_MENU_FRAME_CACHE=true` (reuse locally pre-rendered early menu/startup frames for common exact command histories)
   - `DOOM_MENU_FRAME_PREWARM=true` (generate those menu-cache frames during startup instead of first use)
   - `MENU_FRAME_S3_PREFIX=frames/menu-cache` (optional override for the shared S3 object prefix used by cached menu frames)
-- Optional Redis cache controls:
-  - `REDIS_URL=redis://...` or `rediss://...`
-  - or `REDIS_USERNAME=...`, `REDIS_PASSWORD=...`, `REDIS_HOST=...`, `REDIS_PORT=6379`, `REDIS_TLS=true|false`
-  - when Redis is configured, prewarmed menu-frame public URLs are indexed under `doom:menu-frame:url:<key>`
 - Optional render-performance controls:
   - `DOOM_FRAME_SCALE=0.8` (downscale output frame for faster transfer/render)
   - `DOOM_PNG_COMPRESS_LEVEL=3`
@@ -216,7 +212,7 @@ Required vars:
 - Remote frame objects are now written to tick-versioned keys, which avoids stale loading and early-action images caused by overwriting the same object path.
 - Issue-open now publishes a cached boot frame immediately, then swaps to the real first frame once the live session is ready.
 - Common early menu histories now have a local startup-frame cache fast path, which avoids live render work for the first few menu-selection screens.
-- When S3 is enabled, those cached menu frames can also be published once to a shared S3 prefix and looked up through Redis, which lets repeated early menu states reuse one public object URL instead of re-uploading a fresh frame each time.
+- When S3 is enabled, those cached menu frames can also be published once to a shared deterministic S3 prefix, which lets repeated early menu states reuse one public object URL instead of re-uploading a fresh frame each time.
 - Session transitions are recorded in an append-only event journal for debugging and future replay.
 - Applied commands, session leases, and published frame metadata now have dedicated operational repositories instead of living only inside `session_json`.
 - `/health` now includes runtime repository mode and DB-backed health when available.

@@ -1,5 +1,4 @@
 import { copyFile, readFile, writeFile } from "node:fs/promises";
-import { getRedisJson, isRedisConfigured, setRedisJson } from "../cache/redis.js";
 import { createSession, stepSession } from "../game.js";
 import { ensureEngineAssets, renderEngineFrame } from "../engine.js";
 import {
@@ -35,10 +34,6 @@ export function isMenuFramePrewarmEnabled(env = process.env) {
   return isEnabled("DOOM_MENU_FRAME_PREWARM", true, env);
 }
 
-function getMenuFrameRedisKey(key) {
-  return `doom:menu-frame:url:${key}`;
-}
-
 function matchesHistory(history, expected) {
   if (!Array.isArray(history) || history.length !== expected.length) {
     return false;
@@ -71,55 +66,9 @@ async function buildMenuFrame(projectRoot, spec) {
   return cachePath;
 }
 
-async function getIndexedSharedUrl(key) {
-  if (getIndexedSharedUrl._cache?.has(key)) {
-    return getIndexedSharedUrl._cache.get(key);
-  }
-
-  if (!isRedisConfigured()) {
-    return "";
-  }
-
-  const payload = await getRedisJson(getMenuFrameRedisKey(key));
-  const url = payload?.url || "";
-  if (!getIndexedSharedUrl._cache) {
-    getIndexedSharedUrl._cache = new Map();
-  }
-  if (url) {
-    getIndexedSharedUrl._cache.set(key, url);
-  }
-  return url;
-}
-
-async function setIndexedSharedUrl(key, url) {
-  if (!url) {
-    return;
-  }
-
-  if (!getIndexedSharedUrl._cache) {
-    getIndexedSharedUrl._cache = new Map();
-  }
-  getIndexedSharedUrl._cache.set(key, url);
-
-  if (!isRedisConfigured()) {
-    return;
-  }
-
-  await setRedisJson(getMenuFrameRedisKey(key), {
-    key,
-    url,
-    updatedAt: new Date().toISOString()
-  });
-}
-
 async function ensureSharedMenuFrame(projectRoot, spec, frameStore) {
   if (typeof frameStore?.sharedUrl !== "function" || typeof frameStore?.publishShared !== "function") {
     return "";
-  }
-
-  const indexed = await getIndexedSharedUrl(spec.key);
-  if (indexed) {
-    return indexed;
   }
 
   const cachePath = await ensureMenuFrameCache(projectRoot, spec.key);
@@ -127,9 +76,8 @@ async function ensureSharedMenuFrame(projectRoot, spec, frameStore) {
     return "";
   }
 
-  await frameStore.publishShared(spec.key, cachePath);
   const url = frameStore.sharedUrl(spec.key) || "";
-  await setIndexedSharedUrl(spec.key, url);
+  await frameStore.publishShared(spec.key, cachePath);
   return url;
 }
 

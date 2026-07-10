@@ -1,6 +1,5 @@
 import os from "node:os";
 import { ensureBootFrameCache, isBootFrameCacheEnabled, isBootFramePrewarmEnabled } from "./bootFrame/cache.js";
-import { isRedisConfigured, pingRedis } from "./cache/redis.js";
 import { readGithubTarget, readRuntimeConfig } from "./config/env.js";
 import { createFrameStore } from "./frameStore/index.js";
 import { createGithubClient } from "./github/client.js";
@@ -69,7 +68,6 @@ export function createRuntimeServices({
     sessionFrameRepositoryKind: sessionFrameRepository.kind,
     bootFrameCacheEnabled: isBootFrameCacheEnabled(),
     menuFrameCacheEnabled: isMenuFrameCacheEnabled(),
-    redisConfigured: isRedisConfigured(),
     workerId
   };
 
@@ -159,10 +157,6 @@ export function createRuntimeServices({
     if (typeof frameStore.healthCheck === "function") {
       checks.push(frameStore.healthCheck());
     }
-    if (isRedisConfigured()) {
-      checks.push(pingRedis());
-    }
-
     await Promise.all(checks);
     return {
       ok: true,

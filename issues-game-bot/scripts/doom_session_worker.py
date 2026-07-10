@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import os
+import selectors
 import subprocess
 import sys
 from pathlib import Path
@@ -217,18 +218,74 @@ class DoomGenericSession:
         )
         self.out_png = out_png
         self.ppm_path = out_png.with_suffix(".ppm")
+        self._bootstrap()
+
+    def _read_reply(self, timeout_ms: int | None = None) -> str:
+        if not self.proc.stdout:
+            raise RuntimeError("doomgeneric session process stdout unavailable")
+
+        if timeout_ms is None or timeout_ms <= 0:
+            reply = self.proc.stdout.readline()
+            if not reply:
+                err = self.proc.stderr.read() if self.proc.stderr else ""
+                raise RuntimeError(f"doomgeneric session process ended unexpectedly: {err}")
+            return reply.strip()
+
+        selector = selectors.DefaultSelector()
+        try:
+            selector.register(self.proc.stdout, selectors.EVENT_READ)
+            events = selector.select(timeout_ms / 1000)
+            if not events:
+                raise RuntimeError(f"doomgeneric session startup timeout after {timeout_ms}ms")
+            reply = self.proc.stdout.readline()
+        finally:
+            selector.close()
+
+        if not reply:
+            err = self.proc.stderr.read() if self.proc.stderr else ""
+            raise RuntimeError(f"doomgeneric session process ended unexpectedly: {err}")
+        return reply.strip()
+
+    def _bootstrap(self) -> None:
+        if not self.proc.stdin:
+            raise RuntimeError("doomgeneric session process stdin unavailable")
+
+        timeout_ms = int(
+            os.getenv(
+                "DOOM_SESSION_WORKER_READY_TIMEOUT_MS",
+                os.getenv(
+                    "DOOM_SESSION_WORKER_STARTUP_TIMEOUT_MS",
+                    os.getenv("DOOM_SESSION_WORKER_TIMEOUT_MS", "60000"),
+                ),
+            )
+        )
+        self.proc.stdin.write("SNAPSHOT\n")
+        self.proc.stdin.flush()
+
+        deadline = timeout_ms
+        while deadline > 0:
+            reply = self._read_reply(deadline)
+            if reply == "READY":
+                continue
+            if reply.startswith("OK"):
+                if self.ppm_path.exists():
+                    image = Image.open(self.ppm_path)
+                    save_output_image(image, self.out_png)
+                return
+            raise RuntimeError(f"doomgeneric session startup error: {reply}")
+
+        raise RuntimeError(f"doomgeneric session startup timeout after {timeout_ms}ms")
 
     def _roundtrip(self, line: str) -> None:
         if not self.proc.stdin or not self.proc.stdout:
             raise RuntimeError("doomgeneric session process pipes unavailable")
         self.proc.stdin.write(line + "\n")
         self.proc.stdin.flush()
-        reply = self.proc.stdout.readline()
-        if not reply:
-            err = self.proc.stderr.read() if self.proc.stderr else ""
-            raise RuntimeError(f"doomgeneric session process ended unexpectedly: {err}")
-        if not reply.strip().startswith("OK"):
-            raise RuntimeError(f"doomgeneric session error: {reply.strip()}")
+        reply = self._read_reply()
+        while reply == "READY":
+            reply = self._read_reply()
+        if not reply.startswith("OK"):
+            raise RuntimeError(f"doomgeneric session error: {reply}")
 
         if self.ppm_path.exists():
             image = Image.open(self.ppm_path)

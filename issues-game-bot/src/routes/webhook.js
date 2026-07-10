@@ -210,6 +210,9 @@ async function handleIssueComment({
     return;
   }
 
+  const startedMs = Date.now();
+  console.log(`issue=${issueNumber} comment_received`);
+
   jobQueue.schedule(issueNumber, async () => {
     await lockStore.withIssueLock(issueNumber, async () => {
       await applyIssueCommentCommand({
@@ -225,6 +228,7 @@ async function handleIssueComment({
         inactivityMs: config.inactivityMs,
         frameStore,
         sessionRepository,
+        timing: { startedMs },
         sessionEventRepository,
         sessionCommandRepository,
         sessionLeaseRepository,

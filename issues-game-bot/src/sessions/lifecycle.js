@@ -5,6 +5,14 @@ import { updateIssueGameView } from "../views/gameView.js";
 import { isSessionInactive } from "./inactivity.js";
 import { persistSessionArtifacts } from "./artifacts.js";
 
+function logIssueMetric(issueNumber, label, fields = {}) {
+  const suffix = Object.entries(fields)
+    .filter(([, value]) => value !== undefined && value !== null && value !== "")
+    .map(([key, value]) => `${key}=${value}`)
+    .join(" ");
+  console.log(`issue=${issueNumber} ${label}${suffix ? ` ${suffix}` : ""}`);
+}
+
 function persistSessionStateLater(sessionRepository, sessionManager, issueNumber, state) {
   sessionManager?.rememberState?.(issueNumber, state);
   void sessionRepository.save(issueNumber, state).catch((error) => {
@@ -74,6 +82,7 @@ export async function applyIssueCommentCommand({
   inactivityMs,
   frameStore,
   sessionRepository,
+  timing = null,
   sessionEventRepository,
   sessionCommandRepository,
   sessionLeaseRepository,
@@ -143,6 +152,7 @@ export async function applyIssueCommentCommand({
     await sessionManager?.stopSession?.(issueNumber, "exited");
   }
   const mode = transition.restarted ? "restart" : "step";
+    logIssueMetric(issueNumber, "render_start", { mode, command_count: transition.appliedCommands.length || parsedCommands.length || 0 });
     const artifactResult = await persistSessionArtifacts({
       projectRoot,
       issueNumber,
@@ -152,8 +162,13 @@ export async function applyIssueCommentCommand({
       mode,
       appliedCommands: transition.appliedCommands
     });
+  const patchStartedMs = Date.now();
   await updateIssueGameView(github, owner, repo, issueNumber, originalBody, req, state, frameStore, "", artifactResult?.imageUrlOverride || "");
+  logIssueMetric(issueNumber, "issue_patch_done", { ms: Date.now() - patchStartedMs, tick: state.tick });
   persistSessionStateLater(sessionRepository, sessionManager, issueNumber, state);
+  if (timing?.startedMs) {
+    logIssueMetric(issueNumber, "total_job_ms", { ms: Date.now() - timing.startedMs, tick: state.tick });
+  }
 }
 
 export async function expireIssueSession({ github, owner, repo, issueNumber, frameStore, sessionRepository, sessionEventRepository, sessionLeaseRepository, sessionManager, inactivityMs }) {

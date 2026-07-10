@@ -16,6 +16,7 @@ export async function persistSessionArtifacts({
   sessionManager?.rememberState?.(issueNumber, state, framePath);
 
   try {
+    const renderStartedMs = Date.now();
     const cachedMenuFrame = await publishCachedMenuFrame({
       projectRoot,
       issueNumber,
@@ -24,6 +25,8 @@ export async function persistSessionArtifacts({
       frameStore
     });
     if (cachedMenuFrame) {
+      console.log(`issue=${issueNumber} render_done ms=${Date.now() - renderStartedMs} cache_hit=true`);
+      console.log(`issue=${issueNumber} publish_done ms=0 cache_hit=true`);
       return {
         imageUrlOverride: cachedMenuFrame.sharedUrl || ""
       };
@@ -31,7 +34,10 @@ export async function persistSessionArtifacts({
 
     if (!sessionManager) {
       await renderEngineFrame(projectRoot, sessionPath, framePath);
+      console.log(`issue=${issueNumber} render_done ms=${Date.now() - renderStartedMs} cache_hit=false mode=replay`);
+      const publishStartedMs = Date.now();
       await frameStore.publish(issueNumber, state.tick, framePath);
+      console.log(`issue=${issueNumber} publish_done ms=${Date.now() - publishStartedMs} cache_hit=false`);
       return {
         imageUrlOverride: ""
       };
@@ -39,7 +45,10 @@ export async function persistSessionArtifacts({
 
     if (mode === "start") {
       await sessionManager.startSession(issueNumber, state.seed, framePath);
+      console.log(`issue=${issueNumber} render_done ms=${Date.now() - renderStartedMs} cache_hit=false mode=start`);
+      const publishStartedMs = Date.now();
       await frameStore.publish(issueNumber, state.tick, framePath);
+      console.log(`issue=${issueNumber} publish_done ms=${Date.now() - publishStartedMs} cache_hit=false`);
       return {
         imageUrlOverride: ""
       };
@@ -47,7 +56,10 @@ export async function persistSessionArtifacts({
 
     if (mode === "restart") {
       await sessionManager.restartSession(issueNumber, state.seed, framePath);
+      console.log(`issue=${issueNumber} render_done ms=${Date.now() - renderStartedMs} cache_hit=false mode=restart`);
+      const publishStartedMs = Date.now();
       await frameStore.publish(issueNumber, state.tick, framePath);
+      console.log(`issue=${issueNumber} publish_done ms=${Date.now() - publishStartedMs} cache_hit=false`);
       return {
         imageUrlOverride: ""
       };
@@ -57,7 +69,10 @@ export async function persistSessionArtifacts({
       const prefixLen = Math.max(0, state.history.length - appliedCommands.length);
       const historyPrefix = state.history.slice(0, prefixLen);
       await sessionManager.applyCommands(issueNumber, state.seed, framePath, historyPrefix, appliedCommands);
+      console.log(`issue=${issueNumber} render_done ms=${Date.now() - renderStartedMs} cache_hit=false mode=step`);
+      const publishStartedMs = Date.now();
       await frameStore.publish(issueNumber, state.tick, framePath);
+      console.log(`issue=${issueNumber} publish_done ms=${Date.now() - publishStartedMs} cache_hit=false`);
       return {
         imageUrlOverride: ""
       };
@@ -72,8 +87,12 @@ export async function persistSessionArtifacts({
     if (sessionManager?.invalidate) {
       await sessionManager.invalidate(issueNumber);
     }
+    const renderStartedMs = Date.now();
     await renderEngineFrame(projectRoot, sessionPath, framePath);
+    console.log(`issue=${issueNumber} render_done ms=${Date.now() - renderStartedMs} cache_hit=false mode=fallback`);
+    const publishStartedMs = Date.now();
     await frameStore.publish(issueNumber, state.tick, framePath);
+    console.log(`issue=${issueNumber} publish_done ms=${Date.now() - publishStartedMs} cache_hit=false`);
     return {
       imageUrlOverride: ""
     };

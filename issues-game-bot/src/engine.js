@@ -111,7 +111,7 @@ function createPersistentSessionWorker({ projectRoot, issueNumber, framePath, se
   const startupTimeoutMs = Number(
     process.env.DOOM_SESSION_WORKER_STARTUP_TIMEOUT_MS ||
     process.env.DOOM_SESSION_WORKER_TIMEOUT_MS ||
-    "15000"
+    "4000"
   );
   let resolveReady = null;
   let rejectReady = null;

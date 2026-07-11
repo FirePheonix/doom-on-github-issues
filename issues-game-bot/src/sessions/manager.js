@@ -138,6 +138,8 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     }
 
     const record = ensureRecord(issueNumber, seed, framePath);
+    record.seed = seed;
+    record.framePath = framePath;
     const nextHistoryKey = historyKey(history);
     if (record.liveHistoryKey === nextHistoryKey && !record.liveSyncPromise) {
       return;
@@ -146,71 +148,97 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
       return;
     }
 
-    const previousTask = record.liveSyncPromise
-      ? record.liveSyncPromise.catch(() => {})
-      : Promise.resolve();
     const targetHistory = Array.isArray(history) ? [...history] : [];
-    const baseHistory = record.liveSyncPromise
-      ? [...record.liveSyncTargetHistory]
-      : [...record.liveHistory];
     record.liveSyncTargetKey = nextHistoryKey;
     record.liveSyncTargetHistory = targetHistory;
     record.liveSyncError = "";
-    const task = previousTask.then(async () => {
+
+    if (record.liveSyncPromise) {
+      return;
+    }
+
+    let task;
+    task = runLiveSyncLoop(issueNumber).finally(() => {
+      const current = records.get(issueNumber);
+      if (current?.liveSyncPromise === task) {
+        current.liveSyncPromise = null;
+      }
+    });
+    record.liveSyncPromise = task;
+  }
+
+  async function runLiveSyncLoop(issueNumber) {
+    while (true) {
+      const record = records.get(issueNumber);
+      if (!record) {
+        return;
+      }
+
+      const targetHistory = Array.isArray(record.liveSyncTargetHistory)
+        ? [...record.liveSyncTargetHistory]
+        : [];
+      const targetKey = record.liveSyncTargetKey || historyKey(targetHistory);
+      if (record.liveHistoryKey === targetKey) {
+        record.liveSyncTargetHistory = [];
+        record.liveSyncTargetKey = "";
+        record.liveSyncError = "";
+        return;
+      }
+
+      const baseHistory = Array.isArray(record.liveHistory) ? [...record.liveHistory] : [];
       const startedMs = Date.now();
       console.log(`issue=${issueNumber} persistent_sync_start synced_len=${baseHistory.length} target_len=${targetHistory.length}`);
-      if (targetHistory.length === 0) {
-        await engine.startSession(issueNumber, seed, framePath, { startupTimeoutMs: backgroundStartupTimeoutMs });
-        console.log(`issue=${issueNumber} persistent_sync_done ms=${Date.now() - startedMs} synced_len=0`);
-        return;
-      }
 
-      if (isHistoryPrefix(baseHistory, targetHistory)) {
-        const suffix = targetHistory.slice(baseHistory.length);
-        if (suffix.length === 0) {
+      try {
+        if (targetHistory.length === 0) {
+          await engine.startSession(issueNumber, record.seed, record.framePath, { startupTimeoutMs: backgroundStartupTimeoutMs });
           console.log(`issue=${issueNumber} persistent_sync_done ms=${Date.now() - startedMs} synced_len=${targetHistory.length}`);
-          return;
+        } else if (isHistoryPrefix(baseHistory, targetHistory)) {
+          const suffix = targetHistory.slice(baseHistory.length);
+          if (suffix.length > 0) {
+            await engine.applyCommands(issueNumber, record.seed, record.framePath, baseHistory, suffix, {
+              startupTimeoutMs: backgroundStartupTimeoutMs,
+              requestTimeoutMs: backgroundStartupTimeoutMs
+            });
+          }
+          console.log(`issue=${issueNumber} persistent_sync_done ms=${Date.now() - startedMs} synced_len=${targetHistory.length}`);
+        } else {
+          await engine.syncHistory(issueNumber, record.seed, record.framePath, targetHistory, {
+            startupTimeoutMs: backgroundStartupTimeoutMs,
+            requestTimeoutMs: backgroundStartupTimeoutMs
+          });
+          console.log(`issue=${issueNumber} persistent_sync_done ms=${Date.now() - startedMs} synced_len=${targetHistory.length}`);
         }
-        await engine.applyCommands(issueNumber, seed, framePath, baseHistory, suffix, {
-          startupTimeoutMs: backgroundStartupTimeoutMs,
-          requestTimeoutMs: backgroundStartupTimeoutMs
-        });
-        console.log(`issue=${issueNumber} persistent_sync_done ms=${Date.now() - startedMs} synced_len=${targetHistory.length}`);
-        return;
-      }
-
-      await engine.syncHistory(issueNumber, seed, framePath, targetHistory, {
-        startupTimeoutMs: backgroundStartupTimeoutMs,
-        requestTimeoutMs: backgroundStartupTimeoutMs
-      });
-      console.log(`issue=${issueNumber} persistent_sync_done ms=${Date.now() - startedMs} synced_len=${targetHistory.length}`);
-    })
-      .then(() => {
+      } catch (error) {
         const current = records.get(issueNumber);
-        if (!current || current.liveSyncPromise !== task) {
-          return;
-        }
-        current.liveHistory = targetHistory;
-        current.liveHistoryKey = nextHistoryKey;
-        current.liveHistoryLength = targetHistory.length;
-        current.liveSyncTargetHistory = [];
-        current.liveSyncTargetKey = "";
-        current.liveSyncPromise = null;
-        current.liveSyncError = "";
-        current.source = "live";
-      })
-      .catch((error) => {
-        const current = records.get(issueNumber);
-        if (!current || current.liveSyncPromise !== task) {
+        if (!current) {
           return;
         }
         const message = error instanceof Error ? error.message : String(error);
         console.error(`issue=${issueNumber} persistent_sync_failed target_len=${targetHistory.length} reason=${message}`);
         current.liveSyncTargetHistory = [];
-        current.liveSyncPromise = null;
+        current.liveSyncTargetKey = "";
         current.liveSyncError = message;
-      });
-    record.liveSyncPromise = task;
+        return;
+      }
+
+      const current = records.get(issueNumber);
+      if (!current) {
+        return;
+      }
+
+      current.liveHistory = targetHistory;
+      current.liveHistoryKey = targetKey;
+      current.liveHistoryLength = targetHistory.length;
+      current.liveSyncError = "";
+      current.source = "live";
+
+      if (current.liveSyncTargetKey === targetKey) {
+        current.liveSyncTargetHistory = [];
+        current.liveSyncTargetKey = "";
+        return;
+      }
+    }
   }
 
   function getState(issueNumber) {

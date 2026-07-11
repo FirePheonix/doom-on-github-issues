@@ -3,7 +3,7 @@ import { createPersistentEngine } from "../engine.js";
 export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
   const engine = createPersistentEngine(projectRoot);
   const records = new Map();
-  const liveSyncWaitMs = Math.max(0, Number(process.env.DOOM_PERSISTENT_SYNC_WAIT_MS || "2000"));
+  const liveSyncWaitMs = Math.max(0, Number(process.env.DOOM_PERSISTENT_SYNC_WAIT_MS || "4000"));
 
   function cloneState(state) {
     return structuredClone(state);

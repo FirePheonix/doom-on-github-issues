@@ -5,6 +5,7 @@ import queue
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 
 from PIL import Image
@@ -265,6 +266,14 @@ class DoomGenericSession:
             raise RuntimeError(f"doomgeneric session process ended unexpectedly: {err}")
         return reply.strip()
 
+    def _read_protocol_reply(self, timeout_ms: int | None = None) -> str:
+        while True:
+            reply = self._read_reply(timeout_ms)
+            if reply == "READY" or reply.startswith("OK") or reply.startswith("ERR"):
+                return reply
+            if reply:
+                print(f"doomgeneric_session_stdout={reply}", file=sys.stderr)
+
     def _bootstrap(self) -> None:
         if not self.proc.stdin:
             raise RuntimeError("doomgeneric session process stdin unavailable")
@@ -284,9 +293,12 @@ class DoomGenericSession:
         self.proc.stdin.write("SNAPSHOT\n")
         self.proc.stdin.flush()
 
-        deadline = timeout_ms
-        while deadline > 0:
-            reply = self._read_reply(deadline)
+        deadline = time.monotonic() + (timeout_ms / 1000)
+        while True:
+            remaining_ms = int((deadline - time.monotonic()) * 1000)
+            if remaining_ms <= 0:
+                break
+            reply = self._read_protocol_reply(remaining_ms)
             if reply == "READY":
                 continue
             if reply.startswith("OK"):
@@ -303,9 +315,9 @@ class DoomGenericSession:
             raise RuntimeError("doomgeneric session process pipes unavailable")
         self.proc.stdin.write(line + "\n")
         self.proc.stdin.flush()
-        reply = self._read_reply()
+        reply = self._read_protocol_reply()
         while reply == "READY":
-            reply = self._read_reply()
+            reply = self._read_protocol_reply()
         if not reply.startswith("OK"):
             raise RuntimeError(f"doomgeneric session error: {reply}")
 

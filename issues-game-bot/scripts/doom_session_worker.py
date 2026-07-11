@@ -143,11 +143,17 @@ class SessionWorker:
         backend = os.getenv("DOOM_ENGINE", "doomgeneric").strip().lower()
         self.backend = None
         if backend == "doomgeneric":
+            self.backend = DoomGenericSession(out_png)
+            return
+        if backend in {"auto", "fallback"}:
             try:
                 self.backend = DoomGenericSession(out_png)
                 return
             except Exception as exc:
                 print(f"doomgeneric_session_worker_failed={exc}", file=sys.stderr)
+
+        if backend not in {"vizdoom", "auto", "fallback"}:
+            raise RuntimeError(f"unsupported DOOM_ENGINE={backend}")
 
         self.backend = VizDoomSession(out_png, seed)
 

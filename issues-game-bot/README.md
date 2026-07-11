@@ -180,7 +180,7 @@ Required vars:
 - Optional: `PYTHON_BIN=python3`, `DOOM_TICS_PER_COMMENT=5`
 - Optional: `DOOM_BOOT_DELAY_MS=0` (delay before the background live-session boot job starts; keep at `0` unless you deliberately want slower issue-open fanout)
 - Optional: `DOOM_MODE=demons|classic` (default `demons`; use `classic` to attempt IWAD startup path)
-- Optional: `DOOM_ENGINE=doomgeneric|vizdoom` (default `doomgeneric`, falls back to vizdoom if startup fails)
+- Optional: `DOOM_ENGINE=doomgeneric|vizdoom|auto` (default `doomgeneric`; persistent `doomgeneric` is strict, `auto` allows VizDoom fallback)
 - Optional: `DOOM_PERSISTENT_ENGINE=auto|true|false` (default `auto`; auto now keeps the persistent worker enabled and primes it behind cached boot/menu frames so later comments can stay on DoomGeneric without first-comment startup stalls)
 - Optional: `DOOM_PERSISTENT_SYNC_WAIT_MS=4000` (when a cached frame already kicked off a background live-session sync, wait this long for that exact sync to finish before falling back to replay)
 - Optional: `DOOM_BACKGROUND_SESSION_WORKER_STARTUP_TIMEOUT_MS=30000` (hidden persistent-worker priming timeout; this does not block the visible frame path)
@@ -209,7 +209,7 @@ Required vars:
 
 ## Notes
 - This is still turn-based because GitHub comments are event-driven.
-- Renderer defaults to `doomgeneric` backend (full Doom code path with `doom1.wad`), with automatic `vizdoom` fallback if runtime/backend initialization fails.
+- Renderer defaults to `doomgeneric` backend (full Doom code path with `doom1.wad`). Use `DOOM_ENGINE=auto` only if you explicitly want automatic `vizdoom` fallback.
 - Active sessions prefer in-memory state first, then repository fallback, to reduce per-command latency.
 - Runtime boot now restores active sessions from the repository and re-arms inactivity timers.
 - Frame publishing now supports local disk or S3-backed public objects.

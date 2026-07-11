@@ -10,6 +10,8 @@
 #include <unistd.h>
 #ifdef _WIN32
 #include <windows.h>
+#else
+#include <sys/select.h>
 #endif
 
 typedef struct {
@@ -26,6 +28,7 @@ static size_t g_event_index = 0;
 static int g_current_tick = 0;
 static int g_capture_tick = 0;
 static int g_capture_pending = 0;
+static int g_reply_pending = 0;
 static const char* g_output_ppm = NULL;
 static int g_ticks_per_command = 12;
 static int g_hold_ticks = 2;
@@ -102,21 +105,14 @@ static void request_capture_at(int tick)
     g_capture_pending = 1;
 }
 
-static int run_until_capture()
+static void complete_pending_reply()
 {
-    int max_ticks = g_capture_tick + 800;
-    while (g_capture_pending && g_current_tick < max_ticks)
+    if (g_reply_pending && !g_capture_pending)
     {
-        doomgeneric_Tick();
+        printf("OK\n");
+        fflush(stdout);
+        g_reply_pending = 0;
     }
-
-    if (g_capture_pending)
-    {
-        write_ppm(g_output_ppm);
-        g_capture_pending = 0;
-    }
-
-    return 0;
 }
 
 static void schedule_commands(char** commands, int count)
@@ -180,6 +176,80 @@ void DG_DrawFrame()
         g_capture_pending = 0;
     }
 }
+
+static void trim_line(char* line)
+{
+    size_t len = strlen(line);
+    while (len > 0 && (line[len - 1] == '\n' || line[len - 1] == '\r'))
+    {
+        line[len - 1] = '\0';
+        len--;
+    }
+}
+
+static int process_command_line(char* line)
+{
+    trim_line(line);
+
+    if (strncmp(line, "STEP", 4) == 0)
+    {
+        if (g_reply_pending)
+        {
+            printf("ERR busy\n");
+            fflush(stdout);
+            return 1;
+        }
+
+        char* rest = line + 4;
+        while (*rest && isspace((unsigned char)*rest)) rest++;
+
+        char* commands[256];
+        int count = 0;
+        char* tok = strtok(rest, " \t");
+        while (tok && count < 256)
+        {
+            for (char* p = tok; *p; ++p) *p = (char)tolower((unsigned char)*p);
+            commands[count++] = tok;
+            tok = strtok(NULL, " \t");
+        }
+
+        schedule_commands(commands, count);
+        g_reply_pending = 1;
+        return 1;
+    }
+
+    if (strcmp(line, "SNAPSHOT") == 0)
+    {
+        write_ppm(g_output_ppm);
+        printf("OK\n");
+        fflush(stdout);
+        return 1;
+    }
+
+    if (strcmp(line, "SHUTDOWN") == 0)
+    {
+        printf("OK\n");
+        fflush(stdout);
+        return 0;
+    }
+
+    printf("ERR unknown_command\n");
+    fflush(stdout);
+    return 1;
+}
+
+#ifndef _WIN32
+static int stdin_ready()
+{
+    fd_set read_fds;
+    struct timeval timeout;
+    FD_ZERO(&read_fds);
+    FD_SET(STDIN_FILENO, &read_fds);
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 0;
+    return select(STDIN_FILENO + 1, &read_fds, NULL, NULL, &timeout) > 0;
+}
+#endif
 
 void DG_SleepMs(uint32_t ms)
 {
@@ -251,7 +321,11 @@ int main(int argc, char** argv)
         NULL
     };
     int doom_argc = 4;
+    fprintf(stderr, "doomgeneric_session_worker create_start\n");
+    fflush(stderr);
     doomgeneric_Create(doom_argc, doom_argv);
+    fprintf(stderr, "doomgeneric_session_worker create_done\n");
+    fflush(stderr);
 
     for (int i = 0; i < warmup_ticks; ++i)
     {
@@ -260,53 +334,50 @@ int main(int argc, char** argv)
 
     setvbuf(stdout, NULL, _IOLBF, 0);
     printf("READY\n");
+    fflush(stdout);
     char line[4096];
 
+#ifdef _WIN32
     while (fgets(line, sizeof(line), stdin))
     {
-        size_t len = strlen(line);
-        while (len > 0 && (line[len - 1] == '\n' || line[len - 1] == '\r'))
+        int keep_running = process_command_line(line);
+        while (keep_running && g_reply_pending)
         {
-            line[len - 1] = '\0';
-            len--;
+            doomgeneric_Tick();
+            complete_pending_reply();
         }
-
-        if (strncmp(line, "STEP", 4) == 0)
+        if (!keep_running)
         {
-            char* rest = line + 4;
-            while (*rest && isspace((unsigned char)*rest)) rest++;
-
-            char* commands[256];
-            int count = 0;
-            char* tok = strtok(rest, " \t");
-            while (tok && count < 256)
+            break;
+        }
+    }
+#else
+    int keep_running = 1;
+    while (keep_running)
+    {
+        while (stdin_ready())
+        {
+            if (!fgets(line, sizeof(line), stdin))
             {
-                for (char* p = tok; *p; ++p) *p = (char)tolower((unsigned char)*p);
-                commands[count++] = tok;
-                tok = strtok(NULL, " \t");
+                keep_running = 0;
+                break;
             }
-
-            schedule_commands(commands, count);
-            run_until_capture();
-            printf("OK\n");
-            continue;
+            keep_running = process_command_line(line);
+            if (!keep_running)
+            {
+                break;
+            }
         }
 
-        if (strcmp(line, "SNAPSHOT") == 0)
+        if (!keep_running)
         {
-            write_ppm(g_output_ppm);
-            printf("OK\n");
-            continue;
-        }
-
-        if (strcmp(line, "SHUTDOWN") == 0)
-        {
-            printf("OK\n");
             break;
         }
 
-        printf("ERR unknown_command\n");
+        doomgeneric_Tick();
+        complete_pending_reply();
     }
+#endif
 
     free(g_events);
     return 0;

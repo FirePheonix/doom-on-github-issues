@@ -40,7 +40,7 @@ def action_for(command: str) -> list[int]:
         action[3] = 1
     elif cmd == "fire":
         action[4] = 1
-    elif cmd == "enter":
+    elif cmd == "enter" or cmd == "space":
         action[5] = 1
     return action
 

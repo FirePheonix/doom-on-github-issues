@@ -33,7 +33,7 @@ Turn-based Doom sessions driven by GitHub Issues/comments, rendered through a Do
 - `left/right/up/down`: aliases for `a/d/w/s`
 - `fire`: attack
 - `shoot`: alias for `fire`
-- `enter`: menu/select
+- `enter` / `space`: use/select/open doors
 - `esc`: menu back
 - `exit` / `quit`: exit the game session without closing the GitHub issue
 - Add a repeat count for stronger input, for example `right 6` or `fire 5`

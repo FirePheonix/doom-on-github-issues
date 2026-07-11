@@ -8,6 +8,9 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 typedef struct {
     int tick;
@@ -59,6 +62,7 @@ static unsigned char map_command(const char* command)
     if (strcmp(command, "fire") == 0) return KEY_FIRE;
     if (strcmp(command, "shoot") == 0) return KEY_FIRE;
     if (strcmp(command, "enter") == 0) return KEY_ENTER;
+    if (strcmp(command, "space") == 0) return KEY_ENTER;
     if (strcmp(command, "esc") == 0) return KEY_ESCAPE;
     if (strcmp(command, "escape") == 0) return KEY_ESCAPE;
     return 0;
@@ -177,9 +181,13 @@ void DG_SleepMs(uint32_t ms)
 
 uint32_t DG_GetTicksMs()
 {
+#ifdef _WIN32
+    return (uint32_t)GetTickCount();
+#else
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (uint32_t)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+#endif
 }
 
 int DG_GetKey(int* pressed, unsigned char* doomKey)

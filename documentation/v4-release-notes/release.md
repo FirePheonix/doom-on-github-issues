@@ -11,6 +11,7 @@ V4 turns the project from a replay-heavy prototype into a faster, DoomGeneric-fi
 ```text
 ww
 enter
+space
 d3
 fire
 ```
@@ -43,4 +44,3 @@ is parsed into one ordered command batch and produces one final issue-frame upda
 - GitHub image refresh/proxy latency still exists and is outside the app.
 - S3 publish time is visible for uncached live frames.
 - DoomGeneric worker health still matters. V4 exposes worker state more clearly, but cannot make a broken native worker healthy from JavaScript alone.
-

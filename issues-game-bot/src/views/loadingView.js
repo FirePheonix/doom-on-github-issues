@@ -10,7 +10,7 @@ export async function updateIssueLoadingView(octokit, owner, repo, issueNumber, 
       targetKills: "loading",
       status: "loading",
       renderer: "doomgeneric",
-      commands: "menu: w/s/a/d arrows, enter select, esc back | game: w/a/s/d + fire | exit | restart"
+      commands: "menu/game: w/s/a/d arrows, enter/space use, esc back, fire attack | exit | restart"
     },
     imageUrl,
     logs: imageUrl

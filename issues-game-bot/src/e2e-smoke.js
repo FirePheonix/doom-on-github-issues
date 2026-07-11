@@ -416,6 +416,28 @@ async function main() {
       return body.includes("- tick: 13") && body.includes("Applied command: w");
     });
 
+    await postWebhook(baseUrl, config.webhookSecret, "issue_comment", {
+      action: "created",
+      repository: {
+        owner: { login: process.env.GITHUB_OWNER },
+        name: process.env.GITHUB_REPO
+      },
+      issue: {
+        number: issueNumber,
+        body: github.issueBodies.get(issueNumber) || "Smoke body",
+        state: "open"
+      },
+      comment: {
+        body: "space",
+        user: { type: "User" }
+      }
+    });
+
+    await waitFor(() => {
+      const body = github.issueBodies.get(issueNumber) || "";
+      return body.includes("- tick: 14") && body.includes("Applied command: enter");
+    });
+
     await postWebhook(baseUrl, config.webhookSecret, "issues", {
       action: "closed",
       repository: {

@@ -38,6 +38,15 @@ DOOM_BOOT_FRAME_CACHE=true
 DOOM_BOOT_FRAME_PREWARM=true
 ```
 
+## Commands
+
+- `w`, `a`, `s`, `d`: movement and turning
+- `fire`: attack
+- `enter` / `space`: Use/select/open doors
+- `esc`: back/menu
+- `restart`: restart session
+- `exit`: stop session
+
 ## Runtime Checks
 
 ```mermaid
@@ -105,4 +114,3 @@ DoomGeneric printed non-protocol startup text. This is now diagnostic output, no
 4. Confirm early logs show `cache_hit=true`.
 5. Confirm later live logs show `mode=step`, not repeated `mode=fallback`.
 6. Confirm `/health` reports the expected frame and session repository modes.
-

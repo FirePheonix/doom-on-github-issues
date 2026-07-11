@@ -46,6 +46,7 @@ export function createS3FrameStore({
     ...(endpoint ? { endpoint } : {}),
     ...(forcePathStyle ? { forcePathStyle: true } : {})
   });
+  const publishedSharedKeys = new Set();
 
   function objectKey(issueNumber, tick) {
     const filename = `${normalizeTick(tick)}.png`;
@@ -74,14 +75,19 @@ export function createS3FrameStore({
   }
 
   async function publishShared(name, localPath) {
+    const key = sharedObjectKey(name);
+    if (publishedSharedKeys.has(key)) {
+      return;
+    }
     const body = await readFile(localPath);
     await client.send(new PutObjectCommand({
       Bucket: safeBucket,
-      Key: sharedObjectKey(name),
+      Key: key,
       Body: body,
       ContentType: "image/png",
       CacheControl: "public, max-age=31536000, immutable"
     }));
+    publishedSharedKeys.add(key);
   }
 
   function sharedUrl(name) {

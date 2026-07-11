@@ -9,7 +9,8 @@ This repository hosts a GitHub-Issues-driven Doom experiment:
 
 ## Release
 
-Current release: `v0.1.0`
+Current release: `v4.0.0`
 
-This is the first public prototype of Doom running through GitHub Issues as the interface.
-See `CHANGELOG.md` for what is included and what is still prototype-grade.
+V4 is the DoomGeneric persistence and latency release. It keeps GitHub Issues as the interface while adding cached startup/menu frames, deterministic S3 frame delivery, batched comment commands, and a persistent DoomGeneric worker path.
+
+See `CHANGELOG.md` and `documentation/v4-release-notes/` for the release notes and system design docs.

@@ -1,5 +1,35 @@
 # Changelog
 
+## v4.0.0 - DoomGeneric Persistence And Latency Release
+
+V4 focuses on making GitHub-Issues Doom feel responsive while keeping DoomGeneric as the primary engine path.
+
+### What works
+- Cached boot and startup menu frames for common early histories.
+- Shared cached menu frames published to deterministic S3 object keys.
+- No Redis dependency for menu-frame cache lookups.
+- Multiline and compact comment commands execute as one batch and publish one final frame.
+- Persistent DoomGeneric session worker with a continuous ticking native loop.
+- Strict `DOOM_ENGINE=doomgeneric` behavior for persistent sessions.
+- Replay fallback remains available when the live worker is not ready.
+- Background persistent sync coalesces to the newest target history.
+- Timing logs for render, publish, GitHub PATCH, and total queued job time.
+- User-facing persistent startup wait is short, while hidden background priming can use a longer budget.
+
+### System design docs
+- `documentation/v4-release-notes/release.md`
+- `documentation/v4-release-notes/architecture.md`
+- `documentation/v4-release-notes/sequences.md`
+- `documentation/v4-release-notes/persistent-doomgeneric.md`
+- `documentation/v4-release-notes/latency-and-caching.md`
+- `documentation/v4-release-notes/operations.md`
+
+### Known limitations
+- GitHub issue PATCH and image refresh latency are still outside the app.
+- S3 upload time still affects uncached live frames.
+- If the native DoomGeneric worker fails to boot, the app falls back to replay rendering.
+- The in-process queue and per-instance session manager are still not a distributed worker system.
+
 ## v0.1.0 - Doom in GitHub Issues
 
 First public prototype release.
@@ -27,4 +57,3 @@ First public prototype release.
 - Object storage/CDN for frames.
 - Queue-backed render workers.
 - Better Doom input/runtime state handling.
-

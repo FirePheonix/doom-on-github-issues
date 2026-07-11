@@ -267,8 +267,11 @@ class DoomGenericSession:
             os.getenv(
                 "DOOM_SESSION_WORKER_READY_TIMEOUT_MS",
                 os.getenv(
-                    "DOOM_SESSION_WORKER_STARTUP_TIMEOUT_MS",
-                    os.getenv("DOOM_SESSION_WORKER_TIMEOUT_MS", "4000"),
+                    "DOOM_BACKGROUND_SESSION_WORKER_STARTUP_TIMEOUT_MS",
+                    os.getenv(
+                        "DOOM_SESSION_WORKER_STARTUP_TIMEOUT_MS",
+                        os.getenv("DOOM_SESSION_WORKER_TIMEOUT_MS", "30000"),
+                    ),
                 ),
             )
         )

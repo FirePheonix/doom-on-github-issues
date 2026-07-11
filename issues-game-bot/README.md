@@ -183,9 +183,10 @@ Required vars:
 - Optional: `DOOM_ENGINE=doomgeneric|vizdoom` (default `doomgeneric`, falls back to vizdoom if startup fails)
 - Optional: `DOOM_PERSISTENT_ENGINE=auto|true|false` (default `auto`; auto now keeps the persistent worker enabled and primes it behind cached boot/menu frames so later comments can stay on DoomGeneric without first-comment startup stalls)
 - Optional: `DOOM_PERSISTENT_SYNC_WAIT_MS=4000` (when a cached frame already kicked off a background live-session sync, wait this long for that exact sync to finish before falling back to replay)
+- Optional: `DOOM_BACKGROUND_SESSION_WORKER_STARTUP_TIMEOUT_MS=30000` (hidden persistent-worker priming timeout; this does not block the visible frame path)
 - Optional: `DOOM_SESSION_WORKER_TIMEOUT_MS=20000` (normal persistent-worker request timeout)
 - Optional: `DOOM_SESSION_WORKER_STARTUP_TIMEOUT_MS=4000` (default startup timeout for initial persistent-worker boot/snapshot)
-- Optional: `DOOM_SESSION_WORKER_READY_TIMEOUT_MS=4000` (legacy compatibility knob; defaults to the same 4s startup budget)
+- Optional: `DOOM_SESSION_WORKER_READY_TIMEOUT_MS=30000` (legacy compatibility knob for the Python-to-DoomGeneric bootstrap; defaults to the hidden priming budget)
 - Optional: `DOOM_INACTIVITY_MS=300000` (session manager exits the game after 5 minutes of inactivity)
 - Optional boot-frame latency controls:
   - `DOOM_BOOT_FRAME_CACHE=true` (publish a cached placeholder frame immediately on issue open)

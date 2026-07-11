@@ -305,6 +305,9 @@ export function createPersistentEngine(projectRoot) {
 
   async function spawnOrReuse(issueNumber, seed, framePath, history = [], options = {}) {
     const requireExistingReady = options.requireExistingReady === true;
+    const startupWaitMs = Number(options.startupTimeoutMs || 0) > 0
+      ? Number(options.startupTimeoutMs)
+      : undefined;
     const current = workers.get(issueNumber);
     if (current && !current.worker.isClosed() && current.framePath === framePath) {
       return current.worker;
@@ -335,7 +338,7 @@ export function createPersistentEngine(projectRoot) {
 
     workers.set(issueNumber, { worker, framePath });
     try {
-      await worker.waitUntilReady(worker.startupTimeoutMs);
+      await worker.waitUntilReady(startupWaitMs || worker.startupTimeoutMs);
     } catch (error) {
       await worker.shutdown().catch(() => {});
       const latest = workers.get(issueNumber);
@@ -347,8 +350,8 @@ export function createPersistentEngine(projectRoot) {
     return worker;
   }
 
-  async function startSession(issueNumber, seed, framePath) {
-    await spawnOrReuse(issueNumber, seed, framePath, []);
+  async function startSession(issueNumber, seed, framePath, options = {}) {
+    await spawnOrReuse(issueNumber, seed, framePath, [], options);
   }
 
   async function restartSession(issueNumber, seed, framePath) {
@@ -356,11 +359,11 @@ export function createPersistentEngine(projectRoot) {
     await startSession(issueNumber, seed, framePath);
   }
 
-  async function syncHistory(issueNumber, seed, framePath, history = []) {
+  async function syncHistory(issueNumber, seed, framePath, history = [], options = {}) {
     await stopSession(issueNumber);
-    const worker = await spawnOrReuse(issueNumber, seed, framePath, []);
+    const worker = await spawnOrReuse(issueNumber, seed, framePath, [], options);
     if (Array.isArray(history) && history.length > 0) {
-      await worker.request("step", { commands: history }, { timeoutMs: worker.startupTimeoutMs });
+      await worker.request("step", { commands: history }, { timeoutMs: options.requestTimeoutMs || options.startupTimeoutMs || worker.startupTimeoutMs });
     }
   }
 
@@ -369,7 +372,7 @@ export function createPersistentEngine(projectRoot) {
       return;
     }
     const worker = await spawnOrReuse(issueNumber, seed, framePath, historyPrefix, options);
-    await worker.request("step", { commands });
+    await worker.request("step", { commands }, { timeoutMs: options.requestTimeoutMs });
   }
 
   async function stopSession(issueNumber) {

@@ -4,6 +4,7 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
   const engine = createPersistentEngine(projectRoot);
   const records = new Map();
   const liveSyncWaitMs = Math.max(0, Number(process.env.DOOM_PERSISTENT_SYNC_WAIT_MS || "4000"));
+  const backgroundStartupTimeoutMs = Math.max(0, Number(process.env.DOOM_BACKGROUND_SESSION_WORKER_STARTUP_TIMEOUT_MS || "30000"));
 
   function cloneState(state) {
     return structuredClone(state);
@@ -156,21 +157,33 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     record.liveSyncTargetHistory = targetHistory;
     record.liveSyncError = "";
     const task = previousTask.then(async () => {
+      const startedMs = Date.now();
+      console.log(`issue=${issueNumber} persistent_sync_start synced_len=${baseHistory.length} target_len=${targetHistory.length}`);
       if (targetHistory.length === 0) {
-        await engine.startSession(issueNumber, seed, framePath);
+        await engine.startSession(issueNumber, seed, framePath, { startupTimeoutMs: backgroundStartupTimeoutMs });
+        console.log(`issue=${issueNumber} persistent_sync_done ms=${Date.now() - startedMs} synced_len=0`);
         return;
       }
 
       if (isHistoryPrefix(baseHistory, targetHistory)) {
         const suffix = targetHistory.slice(baseHistory.length);
         if (suffix.length === 0) {
+          console.log(`issue=${issueNumber} persistent_sync_done ms=${Date.now() - startedMs} synced_len=${targetHistory.length}`);
           return;
         }
-        await engine.applyCommands(issueNumber, seed, framePath, baseHistory, suffix);
+        await engine.applyCommands(issueNumber, seed, framePath, baseHistory, suffix, {
+          startupTimeoutMs: backgroundStartupTimeoutMs,
+          requestTimeoutMs: backgroundStartupTimeoutMs
+        });
+        console.log(`issue=${issueNumber} persistent_sync_done ms=${Date.now() - startedMs} synced_len=${targetHistory.length}`);
         return;
       }
 
-      await engine.syncHistory(issueNumber, seed, framePath, targetHistory);
+      await engine.syncHistory(issueNumber, seed, framePath, targetHistory, {
+        startupTimeoutMs: backgroundStartupTimeoutMs,
+        requestTimeoutMs: backgroundStartupTimeoutMs
+      });
+      console.log(`issue=${issueNumber} persistent_sync_done ms=${Date.now() - startedMs} synced_len=${targetHistory.length}`);
     })
       .then(() => {
         const current = records.get(issueNumber);
@@ -191,9 +204,11 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
         if (!current || current.liveSyncPromise !== task) {
           return;
         }
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`issue=${issueNumber} persistent_sync_failed target_len=${targetHistory.length} reason=${message}`);
         current.liveSyncTargetHistory = [];
         current.liveSyncPromise = null;
-        current.liveSyncError = error instanceof Error ? error.message : String(error);
+        current.liveSyncError = message;
       });
     record.liveSyncPromise = task;
   }

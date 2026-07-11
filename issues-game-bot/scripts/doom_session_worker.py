@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 import json
 import os
-import selectors
+import queue
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 from PIL import Image
@@ -193,7 +194,11 @@ class DoomGenericSession:
     def __init__(self, out_png: Path):
         assets_root = Path(__file__).resolve().parent / "assets"
         iwad_path = assets_root / "doom1.wad"
-        bin_path = assets_root / "doomgeneric_session_worker"
+        bin_path = Path(os.getenv("DOOMGENERIC_SESSION_BINARY", "")).expanduser() if os.getenv("DOOMGENERIC_SESSION_BINARY") else assets_root / "doomgeneric_session_worker"
+        if not bin_path.exists() and os.name == "nt":
+            exe_path = Path(f"{bin_path}.exe")
+            if exe_path.exists():
+                bin_path = exe_path
 
         if not iwad_path.exists():
             raise RuntimeError("doomgeneric mode requires scripts/assets/doom1.wad")
@@ -231,15 +236,23 @@ class DoomGenericSession:
                 raise RuntimeError(f"doomgeneric session process ended unexpectedly: {err}")
             return reply.strip()
 
-        selector = selectors.DefaultSelector()
+        result_queue: queue.Queue[str | BaseException] = queue.Queue(maxsize=1)
+
+        def read_line() -> None:
+            try:
+                result_queue.put(self.proc.stdout.readline())
+            except BaseException as exc:  # pragma: no cover - defensive bridge from thread
+                result_queue.put(exc)
+
+        thread = threading.Thread(target=read_line, daemon=True)
+        thread.start()
         try:
-            selector.register(self.proc.stdout, selectors.EVENT_READ)
-            events = selector.select(timeout_ms / 1000)
-            if not events:
-                raise RuntimeError(f"doomgeneric session startup timeout after {timeout_ms}ms")
-            reply = self.proc.stdout.readline()
-        finally:
-            selector.close()
+            reply = result_queue.get(timeout=timeout_ms / 1000)
+        except queue.Empty as exc:
+            raise RuntimeError(f"doomgeneric session startup timeout after {timeout_ms}ms") from exc
+
+        if isinstance(reply, BaseException):
+            raise reply
 
         if not reply:
             err = self.proc.stderr.read() if self.proc.stderr else ""
@@ -255,7 +268,7 @@ class DoomGenericSession:
                 "DOOM_SESSION_WORKER_READY_TIMEOUT_MS",
                 os.getenv(
                     "DOOM_SESSION_WORKER_STARTUP_TIMEOUT_MS",
-                    os.getenv("DOOM_SESSION_WORKER_TIMEOUT_MS", "60000"),
+                    os.getenv("DOOM_SESSION_WORKER_TIMEOUT_MS", "15000"),
                 ),
             )
         )

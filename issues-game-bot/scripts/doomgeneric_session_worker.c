@@ -8,6 +8,9 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 typedef struct {
     int tick;
@@ -185,9 +188,13 @@ void DG_SleepMs(uint32_t ms)
 
 uint32_t DG_GetTicksMs()
 {
+#ifdef _WIN32
+    return (uint32_t)GetTickCount();
+#else
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (uint32_t)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+#endif
 }
 
 int DG_GetKey(int* pressed, unsigned char* doomKey)
@@ -218,7 +225,7 @@ int main(int argc, char** argv)
 {
     const char* iwad_path = NULL;
     const char* output_path = NULL;
-    int warmup_ticks = 50;
+    int warmup_ticks = 0;
 
     for (int i = 1; i < argc; ++i)
     {
@@ -287,8 +294,7 @@ int main(int argc, char** argv)
 
         if (strcmp(line, "SNAPSHOT") == 0)
         {
-            request_capture_at(g_current_tick + 1);
-            run_until_capture();
+            write_ppm(g_output_ppm);
             printf("OK\n");
             continue;
         }

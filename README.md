@@ -2,6 +2,9 @@
 
 Active project is in `issues-game-bot/`.
 
+<img width="695" height="647" alt="image" src="https://github.com/user-attachments/assets/b8ea8409-ce78-4814-9721-439e4e0f4e6f" />
+
+
 This repository hosts a GitHub-Issues-driven Doom experiment:
 - one issue = one game session
 - one comment = one action tick

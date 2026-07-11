@@ -279,7 +279,7 @@ async function main() {
   };
 
   process.env.GITHUB_OWNER = "FirePheonix";
-  process.env.GITHUB_REPO = "tetris-on-pdf";
+  process.env.GITHUB_REPO = "doom-on-github-issues";
   process.env.PUBLIC_BASE_URL = "http://127.0.0.1";
   process.env.DOOM_BOOT_FRAME_CACHE = "true";
   process.env.DOOM_BOOT_FRAME_PREWARM = "false";

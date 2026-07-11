@@ -1,4 +1,4 @@
-# doom-in-github-issues
+# doom-on-github-issues
 
 Active project is in `issues-game-bot/`.
 

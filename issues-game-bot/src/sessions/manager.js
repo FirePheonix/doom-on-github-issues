@@ -231,16 +231,6 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
     record.liveSyncError = "";
   }
 
-  async function repairLiveHistory(record, issueNumber, seed, framePath, history) {
-    const nextHistory = Array.isArray(history) ? [...history] : [];
-    await engine.syncHistory(issueNumber, seed, framePath, nextHistory);
-    updateLiveHistory(record, nextHistory);
-    record.liveSyncTargetHistory = [];
-    record.liveSyncTargetKey = "";
-    record.liveSyncPromise = null;
-    record.source = "live";
-  }
-
   async function startSession(issueNumber, seed, framePath) {
     const record = ensureRecord(issueNumber, seed, framePath);
     record.status = "active";
@@ -273,10 +263,15 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
       await waitForLiveSync(record, expectedHistoryKey);
     }
     if (record.liveHistoryKey !== expectedHistoryKey) {
-      await repairLiveHistory(record, issueNumber, seed, framePath, historyPrefix);
+      throw new Error(
+        `persistent_engine_not_ready synced_len=${record.liveHistoryLength} expected_len=${Array.isArray(historyPrefix) ? historyPrefix.length : 0}`
+      );
+    }
+    if (!engine.hasSession(issueNumber, framePath)) {
+      throw new Error(`persistent_engine_not_ready reason=worker_unavailable issue=${issueNumber}`);
     }
     if (Array.isArray(commands) && commands.length > 0) {
-      await engine.applyCommands(issueNumber, seed, framePath, historyPrefix, commands);
+      await engine.applyCommands(issueNumber, seed, framePath, historyPrefix, commands, { requireExistingReady: true });
       const nextHistory = [...(Array.isArray(historyPrefix) ? historyPrefix : []), ...commands];
       updateLiveHistory(record, nextHistory);
     }

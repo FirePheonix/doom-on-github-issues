@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { access } from "node:fs/promises";
 import path from "node:path";
 
 function getPythonBin() {
@@ -62,6 +63,20 @@ function runProcess(cmd, args, cwd) {
 
 export async function ensureEngineAssets(projectRoot) {
   if (ensureEngineAssets._ready) {
+    return ensureEngineAssets._ready;
+  }
+
+  const assetsRoot = path.join(projectRoot, "scripts", "assets");
+  const requiredAssets = [
+    path.join(assetsRoot, "doom1.wad"),
+    path.join(assetsRoot, "basic.wad"),
+    path.join(assetsRoot, "basic.cfg"),
+    path.join(assetsRoot, "defend_the_center.wad"),
+    path.join(assetsRoot, "defend_the_center.cfg")
+  ];
+  const assetsPresent = await Promise.all(requiredAssets.map((assetPath) => access(assetPath).then(() => true, () => false)));
+  if (assetsPresent.every(Boolean)) {
+    ensureEngineAssets._ready = Promise.resolve({ out: "assets-present", err: "" });
     return ensureEngineAssets._ready;
   }
 
@@ -280,6 +295,7 @@ export function createPersistentEngine(projectRoot) {
       startSession: async () => {},
       restartSession: async () => {},
       applyCommands: async () => {},
+      hasSession: () => false,
       stopSession: async () => {},
       invalidate: async () => {}
     };
@@ -287,10 +303,15 @@ export function createPersistentEngine(projectRoot) {
 
   const workers = new Map();
 
-  async function spawnOrReuse(issueNumber, seed, framePath, history = []) {
+  async function spawnOrReuse(issueNumber, seed, framePath, history = [], options = {}) {
+    const requireExistingReady = options.requireExistingReady === true;
     const current = workers.get(issueNumber);
     if (current && !current.worker.isClosed() && current.framePath === framePath) {
       return current.worker;
+    }
+
+    if (requireExistingReady) {
+      throw new Error(`persistent_engine_not_ready reason=worker_unavailable issue=${issueNumber}`);
     }
 
     if (current) {
@@ -343,11 +364,11 @@ export function createPersistentEngine(projectRoot) {
     }
   }
 
-  async function applyCommands(issueNumber, seed, framePath, historyPrefix, commands) {
+  async function applyCommands(issueNumber, seed, framePath, historyPrefix, commands, options = {}) {
     if (!Array.isArray(commands) || commands.length === 0) {
       return;
     }
-    const worker = await spawnOrReuse(issueNumber, seed, framePath, historyPrefix);
+    const worker = await spawnOrReuse(issueNumber, seed, framePath, historyPrefix, options);
     await worker.request("step", { commands });
   }
 
@@ -362,6 +383,17 @@ export function createPersistentEngine(projectRoot) {
     await stopSession(issueNumber);
   }
 
+  function hasSession(issueNumber, framePath = "") {
+    const current = workers.get(issueNumber);
+    if (!current || current.worker.isClosed()) {
+      return false;
+    }
+    if (framePath && current.framePath !== framePath) {
+      return false;
+    }
+    return current.worker.isReady();
+  }
+
   return {
     isEnabled: () => true,
     getDisableReason: () => "",
@@ -369,6 +401,7 @@ export function createPersistentEngine(projectRoot) {
     restartSession,
     syncHistory,
     applyCommands,
+    hasSession,
     stopSession,
     invalidate
   };

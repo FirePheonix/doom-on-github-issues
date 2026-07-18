@@ -143,12 +143,35 @@ body {
 }
 
 .sidebar__inner {
-  border-left: 1px solid var(--line);
-  border-right: 1px solid var(--line);
-  mask-image: repeating-linear-gradient(to bottom, black 0, black 1px, transparent 1px, transparent 6px);
+  position: relative;
   background: transparent;
   padding: 14px;
   color: #fafafa;
+}
+
+.sidebar__inner::before,
+.sidebar__inner::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.35) 0,
+    rgba(255, 255, 255, 0.35) 1px,
+    transparent 1px,
+    transparent 6px
+  );
+  pointer-events: none;
+}
+
+.sidebar__inner::before {
+  left: 0;
+}
+
+.sidebar__inner::after {
+  right: 0;
 }
 
 .sidebar__label {
@@ -183,11 +206,26 @@ body {
 }
 
 .sidebar__nav {
+  position: relative;
   display: grid;
   gap: 4px;
-  border-left: 1px solid var(--line);
   padding-left: 10px;
-  mask-image: repeating-linear-gradient(to bottom, black 0, black 1px, transparent 1px, transparent 6px);
+}
+
+.sidebar__nav::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.35) 0,
+    rgba(255, 255, 255, 0.35) 1px,
+    transparent 1px,
+    transparent 6px
+  );
 }
 
 .week-link {
@@ -245,10 +283,39 @@ body {
 }
 
 .article__card {
-  border: 1px solid var(--line-soft);
-  background: var(--panel-strong);
-  padding: 20px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.34);
+  border: 0;
+  background: transparent;
+  padding: 20px 24px;
+  box-shadow: none;
+}
+
+.article {
+  position: relative;
+}
+
+.article::before,
+.article::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.26) 0,
+    rgba(255, 255, 255, 0.26) 1px,
+    transparent 1px,
+    transparent 6px
+  );
+  pointer-events: none;
+}
+
+.article::before {
+  left: 0;
+}
+
+.article::after {
+  right: 0;
 }
 
 .article__date {

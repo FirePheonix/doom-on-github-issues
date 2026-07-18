@@ -143,11 +143,11 @@ body {
 }
 
 .sidebar__inner {
-  border: 1px solid var(--line-soft);
-  background: var(--panel);
-  backdrop-filter: blur(4px);
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  mask-image: repeating-linear-gradient(to bottom, black 0, black 1px, transparent 1px, transparent 6px);
+  background: transparent;
   padding: 14px;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
   color: #fafafa;
 }
 
@@ -165,12 +165,16 @@ body {
 
 .version-select {
   width: 100%;
-  border: 1px solid var(--line);
-  background: #09090b;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
   color: #fafafa;
-  padding: 8px 10px;
+  padding: 8px 0;
   font-size: 0.88rem;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
+  border-radius: 0;
+  outline: none;
+  appearance: none;
 }
 
 .sidebar__inner h2 {

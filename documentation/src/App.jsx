@@ -200,9 +200,6 @@ export default function App() {
 
   return (
     <div className="docs-root">
-      <div className="guide-line guide-line--left" aria-hidden="true" />
-      <div className="guide-line guide-line--right" aria-hidden="true" />
-
       <main className="page">
         <section className="banner" aria-hidden="true">
           <div className="banner__mesh" />

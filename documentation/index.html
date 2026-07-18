@@ -3,59 +3,135 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Documentation</title>
+    <title>Doom on GitHub Issues Docs</title>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg">
     <link rel="stylesheet" href="./index.css">
-    <script src="./index.js" defer></script>
   </head>
   <body>
-    <div id="article">
-      <div id="header_box">
-        <div id="logo_mark" aria-hidden="true">DOC</div>
-        <div>
-          <h1>Documentation</h1>
-          <p id="subtitle">Static release notes for the Doom-on-GitHub-Issues project, ready for Vercel.</p>
+    <main class="page">
+      <section class="hero">
+        <div class="hero__mark" aria-hidden="true">DOC</div>
+        <div class="hero__copy">
+          <p class="eyebrow">Doom on GitHub Issues</p>
+          <h1>Simple docs that deploy cleanly on Vercel.</h1>
+          <p class="lede">
+            This page is fully static. No runtime Markdown fetching, no client-side document loader, and no dependency on nested asset routing.
+          </p>
         </div>
-      </div>
+      </section>
 
-      <p id="intro">
-        Point a Vercel project at <code>documentation/</code> and this site will deploy as-is, with no build step. If you deploy the repo root instead, the top-level redirect sends visitors here.
-      </p>
+      <section class="panel panel--callout">
+        <p class="panel__title">Fastest deploy path</p>
+        <p>
+          Set the Vercel project root to <code>documentation/</code>, leave the build command empty, and serve the folder as a static site.
+        </p>
+      </section>
 
-      <p>Source code: <a href="https://github.com/FirePheonix/doom-on-github-issues">https://github.com/FirePheonix/doom-on-github-issues</a></p>
+      <section class="grid grid--two">
+        <article class="panel">
+          <p class="panel__title">Project</p>
+          <p>One GitHub issue is one Doom session. Comments become input ticks. The issue body becomes the current frame display.</p>
+          <a class="link_button" href="https://github.com/FirePheonix/doom-on-github-issues" target="_blank" rel="noreferrer">Open repository</a>
+        </article>
+        <article class="panel">
+          <p class="panel__title">Current release</p>
+          <p><strong>v4.0.0</strong> focuses on lower latency, cached early menu states, deterministic frame publishing, and a persistent DoomGeneric worker path.</p>
+        </article>
+      </section>
 
-      <p id="deploy_callout">Fastest path: Vercel project root = <code>documentation/</code>. The docs shell, sidebar links, and hash-based document navigation all work from static hosting.</p>
-
-      <hr>
-
-      <div id="controls_box">
-        <a href="#doc=home" id="play_button">Open Docs</a>
-        <p id="shareware_note" style="margin: 0px; margin-left: 8px;">(current release)</p>
-        <div class="spacer"></div>
-        <input type="checkbox" id="archive_checkbox">
-        <label for="archive_checkbox">Archive</label>
-      </div>
-
-      <div id="archive_container">
-        <div class="section">
-          <div class="section_title">Current release</div>
-          <div id="current_release_links" class="link_grid"></div>
+      <section class="section">
+        <div class="section__header">
+          <p class="eyebrow">Deploy</p>
+          <h2>Host it on Vercel</h2>
         </div>
-        <div class="section">
-          <div class="section_title">Archive</div>
-          <div id="archive_links" class="link_grid"></div>
-        </div>
-      </div>
+        <ol class="steps">
+          <li>Create a Vercel project from this repository.</li>
+          <li>Set the project root to <code>documentation/</code>.</li>
+          <li>Use the static or "Other" preset.</li>
+          <li>Leave the build command empty.</li>
+          <li>If Vercel asks for an output directory, use <code>.</code>.</li>
+        </ol>
+        <p class="note">
+          If you deploy the repository root instead, the top-level <code>vercel.json</code> redirects <code>/</code> to <code>/documentation/</code>.
+        </p>
+      </section>
 
-      <div id="viewer_shell">
-        <div id="doc_meta">
-          <span id="doc_title">Loading...</span>
-          <span id="doc_path"></span>
+      <section class="section">
+        <div class="section__header">
+          <p class="eyebrow">Release docs</p>
+          <h2>v4 reference</h2>
         </div>
-        <div id="doc_viewer" aria-live="polite"></div>
-      </div>
+        <div class="grid grid--cards">
+          <article class="card">
+            <h3>Release summary</h3>
+            <p>What changed in v4, what got simpler, and what constraints still remain.</p>
+            <a class="link_button" href="https://github.com/FirePheonix/doom-on-github-issues/blob/master/documentation/v4-release-notes/release.md" target="_blank" rel="noreferrer">Open doc</a>
+          </article>
+          <article class="card">
+            <h3>Architecture</h3>
+            <p>System overview, runtime components, storage paths, and the issue-to-frame data flow.</p>
+            <a class="link_button" href="https://github.com/FirePheonix/doom-on-github-issues/blob/master/documentation/v4-release-notes/architecture.md" target="_blank" rel="noreferrer">Open doc</a>
+          </article>
+          <article class="card">
+            <h3>Runtime sequences</h3>
+            <p>Cached menu frames, live DoomGeneric stepping, replay fallback, and latency logging flows.</p>
+            <a class="link_button" href="https://github.com/FirePheonix/doom-on-github-issues/blob/master/documentation/v4-release-notes/sequences.md" target="_blank" rel="noreferrer">Open doc</a>
+          </article>
+          <article class="card">
+            <h3>Persistent DoomGeneric</h3>
+            <p>Why persistence matters, how the worker protocol behaves, and how timeouts are split.</p>
+            <a class="link_button" href="https://github.com/FirePheonix/doom-on-github-issues/blob/master/documentation/v4-release-notes/persistent-doomgeneric.md" target="_blank" rel="noreferrer">Open doc</a>
+          </article>
+          <article class="card">
+            <h3>Latency and caching</h3>
+            <p>What the logs mean, how cached menu frames work, and where the remaining bottlenecks are.</p>
+            <a class="link_button" href="https://github.com/FirePheonix/doom-on-github-issues/blob/master/documentation/v4-release-notes/latency-and-caching.md" target="_blank" rel="noreferrer">Open doc</a>
+          </article>
+          <article class="card">
+            <h3>Operations</h3>
+            <p>Deployment topology, recommended environment variables, health checks, and release checklist.</p>
+            <a class="link_button" href="https://github.com/FirePheonix/doom-on-github-issues/blob/master/documentation/v4-release-notes/operations.md" target="_blank" rel="noreferrer">Open doc</a>
+          </article>
+        </div>
+      </section>
 
-      <p id="footer_note">Tip: click a doc button above, or append <code>#doc=...</code> to the URL for a shareable view.</p>
-    </div>
+      <section class="section">
+        <div class="section__header">
+          <p class="eyebrow">Quick summary</p>
+          <h2>What v4 changed</h2>
+        </div>
+        <div class="grid grid--two">
+          <article class="panel">
+            <p class="panel__title">User-facing</p>
+            <ul class="list">
+              <li>Early menu states can resolve from cached frames.</li>
+              <li>One comment can batch multiple commands into one final frame update.</li>
+              <li>The visible path avoids long replay stalls when a live worker is ready.</li>
+            </ul>
+          </article>
+          <article class="panel">
+            <p class="panel__title">Runtime</p>
+            <ul class="list">
+              <li>The DoomGeneric worker stays alive and advances in memory.</li>
+              <li>Frame publishing uses deterministic S3 object naming for shared menu frames.</li>
+              <li>Background sync coalesces to the newest target instead of draining stale work.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <details class="archive">
+          <summary>Archive release notes</summary>
+          <div class="archive__links">
+            <a href="https://github.com/FirePheonix/doom-on-github-issues/blob/master/documentation/v3.5-release-notes/README.md" target="_blank" rel="noreferrer">V3.5 release notes</a>
+            <a href="https://github.com/FirePheonix/doom-on-github-issues/blob/master/documentation/v3-release-notes/README.md" target="_blank" rel="noreferrer">V3 release notes</a>
+            <a href="https://github.com/FirePheonix/doom-on-github-issues/blob/master/documentation/v2.5-release-notes/README.md" target="_blank" rel="noreferrer">V2.5 release notes</a>
+            <a href="https://github.com/FirePheonix/doom-on-github-issues/blob/master/documentation/v2-release-notes/README.md" target="_blank" rel="noreferrer">V2 release notes</a>
+            <a href="https://github.com/FirePheonix/doom-on-github-issues/blob/master/documentation/v1-release-notes/README.md" target="_blank" rel="noreferrer">V1 release notes</a>
+          </div>
+        </details>
+      </section>
+    </main>
   </body>
 </html>

@@ -1,9 +1,10 @@
 # Documentation
 
-- This folder is a static site entrypoint for Vercel.
-- Recommended deployment: point the Vercel project root at `documentation/` so `index.html` is served directly.
+- This folder is a plain static Vercel site.
+- The homepage is self-contained HTML and CSS. It does not fetch Markdown files at runtime.
+- Recommended deployment: point the Vercel project root at `documentation/`.
 - If you deploy the repo root instead, the top-level `vercel.json` redirects `/` to `/documentation/`.
-- [Deploying on Vercel](./deploy.md)
+- Deep release notes are linked directly from the homepage.
 - [V1 release notes](./v1-release-notes/README.md)
 - [V2 release notes](./v2-release-notes/README.md)
 - [V2.5 release notes](./v2.5-release-notes/README.md)

@@ -21,7 +21,7 @@ Deploy the `documentation/` project root on Vercel with:
 - Build command: `npm run build`
 - Output directory: `dist`
 
-Release notes referenced from the weekly docs shell:
+Release notes rendered by the docs app:
 
 - [V1 release notes](./v1-release-notes/README.md)
 - [V2 release notes](./v2-release-notes/README.md)

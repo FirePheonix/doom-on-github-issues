@@ -31,12 +31,34 @@ const versions = [
           "More predictable artifact publishing behavior.",
         ],
       },
-      links: {
-        title: "Docs",
-        links: [
-          { label: "V4 release notes", href: "./v4-release-notes/README.md" },
-          { label: "V4 architecture", href: "./v4-release-notes/architecture.md" },
-          { label: "V4 operations", href: "./v4-release-notes/operations.md" },
+      architecture: {
+        title: "Architecture",
+        list: [
+          "GitHub webhook receives issue/comment events and returns fast after enqueue.",
+          "Per-issue queue lock ensures command application is serialized for one session.",
+          "Lifecycle layer parses comment commands and computes target state.",
+          "Artifact layer selects cache-hit, persistent-step render, or replay fallback path.",
+          "Issue body patch updates latest frame URL after publish completes.",
+        ],
+      },
+      operations: {
+        title: "Operations",
+        list: [
+          "Run with `DOOM_ENGINE=doomgeneric` for persistent worker behavior.",
+          "Keep frame store on S3 for shared deterministic cache artifacts.",
+          "Track render, publish, patch, and total job time metrics for bottleneck analysis.",
+          "Use warmup/background sync to keep live state near newest visible history.",
+        ],
+      },
+      release: {
+        title: "Release Summary",
+        paragraphs: [
+          "V4 shifted the project from replay-heavy behavior to a persistent, cache-assisted runtime where repeated interaction remains responsive as issue history grows.",
+        ],
+        list: [
+          "Faster steady-state comments.",
+          "Cleaner separation between fast path and fallback path.",
+          "Operational model aligned for continuous usage.",
         ],
       },
     },
@@ -67,9 +89,11 @@ const versions = [
           "Clear fallback boundary when warm worker path is unavailable.",
         ],
       },
-      links: {
-        title: "Docs",
-        links: [{ label: "V3.5 release notes", href: "./v3.5-release-notes/README.md" }],
+      release: {
+        title: "Release Summary",
+        paragraphs: [
+          "V3.5 was a focused latency release that improved first-frame experience without changing the broader session model.",
+        ],
       },
     },
   },
@@ -97,9 +121,11 @@ const versions = [
           "Clearer separation between runtime state and operations state.",
         ],
       },
-      links: {
-        title: "Docs",
-        links: [{ label: "V3 release notes", href: "./v3-release-notes/README.md" }],
+      release: {
+        title: "Release Summary",
+        paragraphs: [
+          "V3 established durable session state design so later runtime features could evolve without losing recoverability.",
+        ],
       },
     },
   },
@@ -127,9 +153,11 @@ const versions = [
           "Cleaner operational model for session state updates.",
         ],
       },
-      links: {
-        title: "Docs",
-        links: [{ label: "V2.5 release notes", href: "./v2.5-release-notes/README.md" }],
+      release: {
+        title: "Release Summary",
+        paragraphs: [
+          "V2.5 reduced lifecycle complexity by consolidating behavior in a dedicated session manager layer.",
+        ],
       },
     },
   },
@@ -157,9 +185,11 @@ const versions = [
           "Reduced synchronous coupling in webhook handler path.",
         ],
       },
-      links: {
-        title: "Docs",
-        links: [{ label: "V2 release notes", href: "./v2-release-notes/README.md" }],
+      release: {
+        title: "Release Summary",
+        paragraphs: [
+          "V2 cleaned up pipeline boundaries so rendering work no longer looked like synchronous webhook processing.",
+        ],
       },
     },
   },
@@ -187,15 +217,17 @@ const versions = [
           "Created baseline for subsequent runtime and latency improvements.",
         ],
       },
-      links: {
-        title: "Docs",
-        links: [{ label: "V1 release notes", href: "./v1-release-notes/README.md" }],
+      release: {
+        title: "Release Summary",
+        paragraphs: [
+          "V1 defined the baseline behavior and interfaces that all subsequent releases optimized.",
+        ],
       },
     },
   },
 ];
 
-const sectionOrder = ["overview", "changes", "notes", "links"];
+const sectionOrder = ["overview", "changes", "notes", "architecture", "operations", "release"];
 
 export default function App() {
   const [versionId, setVersionId] = useState("v4");
@@ -205,6 +237,7 @@ export default function App() {
     () => versions.find((version) => version.id === versionId) ?? versions[0],
     [versionId],
   );
+  const activeSectionOrder = sectionOrder.filter((id) => activeVersion.sections[id]);
   const activeSection = activeVersion.sections[sectionId] ?? activeVersion.sections.overview;
 
   const onVersionChange = (event) => {
@@ -245,7 +278,7 @@ export default function App() {
 
               <p className="sidebar__label sidebar__label--section">Sections</p>
               <nav className="sidebar__nav">
-                {sectionOrder.map((id) => (
+                {activeSectionOrder.map((id) => (
                   <button
                     key={id}
                     type="button"
@@ -278,16 +311,6 @@ export default function App() {
                         <li key={item}>{item}</li>
                       ))}
                     </ul>
-                  ) : null}
-
-                  {activeSection.links ? (
-                    <div className="entry__links">
-                      {activeSection.links.map((link) => (
-                        <a key={link.href} href={link.href} target="_blank" rel="noreferrer">
-                          {link.label}
-                        </a>
-                      ))}
-                    </div>
                   ) : null}
                 </section>
               </div>

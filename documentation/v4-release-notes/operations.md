@@ -51,13 +51,13 @@ DOOM_BOOT_FRAME_PREWARM=true
 
 ```mermaid
 flowchart LR
-  HEALTH[/health] --> H1[GitHub configured]
-  HEALTH --> H2[repository modes]
-  HEALTH --> H3[S3 health]
-  DEBUG[/debug/runtime] --> D1[recovery metadata]
-  DEBUG --> D2[cache settings]
-  ISSUE[/debug/issues/:id] --> I1[job status]
-  ISSUE --> I2[live session state]
+  HEALTH["/health"] --> H1["GitHub configured"]
+  HEALTH --> H2["repository modes"]
+  HEALTH --> H3["S3 health"]
+  DEBUG["/debug/runtime"] --> D1["recovery metadata"]
+  DEBUG --> D2["cache settings"]
+  ISSUE["/debug/issues/:id"] --> I1["job status"]
+  ISSUE --> I2["live session state"]
 ```
 
 ## Expected Healthy Logs

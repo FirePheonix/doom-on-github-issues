@@ -135,12 +135,15 @@ body {
   display: grid;
   gap: 14px;
   grid-template-columns: 280px minmax(0, 1fr);
+  height: calc(100vh - 250px);
+  min-height: 420px;
 }
 
 .sidebar {
   position: sticky;
-  top: 18px;
+  top: 0;
   align-self: start;
+  height: 100%;
 }
 
 .sidebar__inner {
@@ -148,6 +151,8 @@ body {
   background: transparent;
   padding: 14px;
   color: #fafafa;
+  height: 100%;
+  overflow-y: auto;
 }
 
 .sidebar__inner::before,
@@ -212,26 +217,9 @@ body {
 }
 
 .sidebar__nav {
-  position: relative;
   display: grid;
   gap: 4px;
   padding-left: 10px;
-}
-
-.sidebar__nav::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background-image: repeating-linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0.35) 0,
-    rgba(255, 255, 255, 0.35) 1px,
-    transparent 1px,
-    transparent 6px
-  );
 }
 
 .week-link {
@@ -297,6 +285,9 @@ body {
 
 .article {
   position: relative;
+  height: 100%;
+  overflow-y: auto;
+  padding-right: 8px;
 }
 
 .article::before,
@@ -322,6 +313,16 @@ body {
 
 .article::after {
   right: 0;
+}
+
+.article::-webkit-scrollbar,
+.sidebar__inner::-webkit-scrollbar {
+  width: 6px;
+}
+
+.article::-webkit-scrollbar-thumb,
+.sidebar__inner::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .article__date {
@@ -472,9 +473,18 @@ body {
 @media (max-width: 960px) {
   .shell {
     grid-template-columns: 1fr;
+    height: auto;
   }
 
   .sidebar {
     position: static;
+    height: auto;
+  }
+
+  .sidebar__inner,
+  .article {
+    height: auto;
+    overflow: visible;
+    padding-right: 0;
   }
 }

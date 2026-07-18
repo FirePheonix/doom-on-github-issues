@@ -4,3 +4,4 @@ doompdf-ref/
 issues-game-bot/vendor/doomgeneric/
 issues-game-bot/data/
 image*.png
+.chrome-mermaid-test/

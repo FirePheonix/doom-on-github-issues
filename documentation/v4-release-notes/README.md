@@ -25,13 +25,12 @@ V4 keeps GitHub Issues as both controller and display surface, but makes the bac
 
 ```mermaid
 flowchart LR
-  C[Issue Comment] --> P[Parse Commands]
-  P --> S[Update Session State]
-  S --> R{Cached Frame?}
-  R -->|yes| CF[Copy Cached PNG + Reuse Shared URL]
-  R -->|no| DG[Persistent DoomGeneric STEP]
-  DG --> FS[Publish Frame]
-  CF --> UI[PATCH Issue Body]
+  C["Issue Comment"] --> P["Parse Commands"]
+  P --> S["Update Session State"]
+  S --> R{"Cached Frame?"}
+  R -->|yes| CF["Copy Cached PNG + Reuse Shared URL"]
+  R -->|no| DG["Persistent DoomGeneric STEP"]
+  DG --> FS["Publish Frame"]
+  CF --> UI["PATCH Issue Body"]
   FS --> UI
 ```
-

@@ -6,21 +6,21 @@ The fastest path is a cached menu frame:
 
 ```mermaid
 flowchart LR
-  COMMENT[Comment] --> PARSE[Parse]
-  PARSE --> CACHE[Menu Cache Hit]
-  CACHE --> URL[Shared S3 URL]
-  URL --> PATCH[GitHub PATCH]
+  COMMENT["Comment"] --> PARSE["Parse"]
+  PARSE --> CACHE["Menu Cache Hit"]
+  CACHE --> URL["Shared S3 URL"]
+  URL --> PATCH["GitHub PATCH"]
 ```
 
 The uncached live path has more work:
 
 ```mermaid
 flowchart LR
-  COMMENT[Comment] --> PARSE[Parse]
-  PARSE --> STEP[DoomGeneric STEP]
-  STEP --> PNG[PNG Encode]
-  PNG --> S3[S3 Upload]
-  S3 --> PATCH[GitHub PATCH]
+  COMMENT["Comment"] --> PARSE["Parse"]
+  PARSE --> STEP["DoomGeneric STEP"]
+  STEP --> PNG["PNG Encode"]
+  PNG --> S3["S3 Upload"]
+  S3 --> PATCH["GitHub PATCH"]
 ```
 
 ## What The Logs Mean
@@ -44,12 +44,12 @@ V4 uses a local pre-rendered menu cache for common early histories:
 
 ```mermaid
 flowchart TD
-  H[History] --> M{Known menu history?}
-  M -->|yes| C[data/cache menu PNG]
-  C --> COPY[copy to issue frame path]
-  C --> SHARED[shared S3 URL]
-  SHARED --> ISSUE[Issue Markdown]
-  M -->|no| LIVE[Live render or replay]
+  H["History"] --> M{"Known menu history?"}
+  M -->|yes| C["data/cache menu PNG"]
+  C --> COPY["copy to issue frame path"]
+  C --> SHARED["shared S3 URL"]
+  SHARED --> ISSUE["Issue Markdown"]
+  M -->|no| LIVE["Live render or replay"]
 ```
 
 The shared S3 keys are deterministic:
@@ -96,4 +96,3 @@ V4 coalesces targets so quick cached inputs update the latest desired state inst
 - `DOOM_FRAME_SCALE=0.8`
 - `DOOM_PNG_COMPRESS_LEVEL=3`
 - `DOOM_PNG_OPTIMIZE=false`
-

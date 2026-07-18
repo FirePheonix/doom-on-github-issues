@@ -41,6 +41,22 @@ function resolveSitePath(path) {
   return new URL(path, baseHref).toString();
 }
 
+function buildDocCandidates(path) {
+  const normalized = normalizePath(path);
+  const current = new URL(window.location.href);
+  const siteRoot = `${current.origin}/`;
+  const docsRoot = `${current.origin}/documentation/`;
+
+  return Array.from(
+    new Set([
+      resolveSitePath(path),
+      new URL(normalized, current.href).toString(),
+      new URL(normalized, siteRoot).toString(),
+      new URL(normalized, docsRoot).toString(),
+    ]),
+  );
+}
+
 function escapeHtml(value) {
   return String(value)
     .replace(/&/g, "&amp;")
@@ -263,14 +279,24 @@ async function loadDoc(doc) {
   docPath.textContent = doc.path;
   docViewer.innerHTML = "<p class=\"loading\">Loading document...</p>";
 
-  const response = await fetch(resolveSitePath(doc.path));
-  if (!response.ok) {
-    throw new Error(`Unable to load ${doc.path} (${response.status})`);
+  let lastError = null;
+  for (const candidate of buildDocCandidates(doc.path)) {
+    try {
+      const response = await fetch(candidate);
+      if (response.ok) {
+        const markdown = await response.text();
+        docViewer.innerHTML = renderMarkdown(markdown, doc.path);
+        setActiveDocButton();
+        return;
+      }
+
+      lastError = new Error(`Unable to load ${candidate} (${response.status})`);
+    } catch (error) {
+      lastError = error;
+    }
   }
 
-  const markdown = await response.text();
-  docViewer.innerHTML = renderMarkdown(markdown, doc.path);
-  setActiveDocButton();
+  throw new Error(`Unable to load ${doc.path}${lastError ? `: ${lastError.message}` : ""}`);
 }
 
 function readDocIdFromHash() {

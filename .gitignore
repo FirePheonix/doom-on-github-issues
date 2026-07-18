@@ -4,4 +4,8 @@ doompdf-ref/
 issues-game-bot/vendor/doomgeneric/
 issues-game-bot/data/
 image*.png
+!documentation/public/
+!documentation/public/build-walkthrough/
+!documentation/public/build-walkthrough/image*.png
 .chrome-mermaid-test/
+documentation/.vite-dev*.log

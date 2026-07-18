@@ -39,6 +39,7 @@ import v35System from "../v3.5-release-notes/system.md?raw";
 
 import v4Readme from "../v4-release-notes/README.md?raw";
 import v4Architecture from "../v4-release-notes/architecture.md?raw";
+import v4BuildWalkthrough from "../v4-release-notes/build-walkthrough.md?raw";
 import v4Latency from "../v4-release-notes/latency-and-caching.md?raw";
 import v4Operations from "../v4-release-notes/operations.md?raw";
 import v4Persistent from "../v4-release-notes/persistent-doomgeneric.md?raw";
@@ -54,6 +55,7 @@ const releases = [
     docs: [
       { id: "readme", label: "Overview", content: v4Readme },
       { id: "release", label: "Release", content: v4Release },
+      { id: "build-walkthrough", label: "Build Walkthrough", content: v4BuildWalkthrough },
       { id: "architecture", label: "Architecture", content: v4Architecture },
       { id: "sequences", label: "Sequences", content: v4Sequences },
       { id: "persistent", label: "Persistent DoomGeneric", content: v4Persistent },

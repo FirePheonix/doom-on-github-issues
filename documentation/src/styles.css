@@ -459,6 +459,16 @@ body {
   color: #d4d4d8;
 }
 
+.markdown img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 12px 0 8px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: #050507;
+}
+
 .mermaid-block {
   margin: 12px 0;
   padding: 8px;

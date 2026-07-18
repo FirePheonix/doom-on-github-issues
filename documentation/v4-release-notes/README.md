@@ -3,6 +3,7 @@
 V4 is the latency and DoomGeneric persistence release.
 
 - [release.md](./release.md)
+- [build-walkthrough.md](./build-walkthrough.md)
 - [architecture.md](./architecture.md)
 - [sequences.md](./sequences.md)
 - [persistent-doomgeneric.md](./persistent-doomgeneric.md)

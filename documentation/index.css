@@ -114,6 +114,16 @@ code {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.grid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
 .panel,
 .card,
 .archive {
@@ -126,6 +136,10 @@ code {
 .panel,
 .card {
   padding: 20px;
+}
+
+.panel--plain {
+  background: rgba(255, 255, 255, 0.58);
 }
 
 .panel--callout {
@@ -171,6 +185,10 @@ code {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.card--wide {
+  gap: 16px;
 }
 
 .card h3 {
@@ -226,13 +244,8 @@ code {
   padding: 0 20px 20px;
 }
 
-.archive__links a {
-  color: var(--accent-dark);
-  text-decoration: none;
-}
-
-.archive__links a:hover {
-  text-decoration: underline;
+.archive__links--grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 @media (max-width: 720px) {
@@ -254,7 +267,9 @@ code {
   }
 
   .grid--two,
-  .grid--cards {
+  .grid--cards,
+  .grid--three,
+  .archive__links--grid {
     grid-template-columns: 1fr;
   }
 }

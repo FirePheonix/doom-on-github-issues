@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useId, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import mermaid from "mermaid";
 
 import v1Readme from "../v1-release-notes/README.md?raw";
 import v1Blog from "../v1-release-notes/blog.md?raw";
@@ -131,6 +132,51 @@ const releases = [
   },
 ];
 
+function MermaidBlock({ chart }) {
+  const reactId = useId();
+  const diagramId = useMemo(() => `mermaid-${reactId.replace(/[^a-zA-Z0-9_-]/g, "")}`, [reactId]);
+  const [svg, setSvg] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: "dark",
+      securityLevel: "loose",
+      fontFamily: "Inter, sans-serif",
+    });
+
+    async function renderDiagram() {
+      try {
+        const { svg: renderedSvg } = await mermaid.render(diagramId, chart);
+        if (!active) return;
+        setSvg(renderedSvg);
+        setError("");
+      } catch (err) {
+        if (!active) return;
+        setSvg("");
+        setError(err instanceof Error ? err.message : "Failed to render mermaid diagram.");
+      }
+    }
+
+    renderDiagram();
+    return () => {
+      active = false;
+    };
+  }, [chart, diagramId]);
+
+  if (error) {
+    return (
+      <pre>
+        <code>{chart}</code>
+      </pre>
+    );
+  }
+
+  return <div className="mermaid-block" dangerouslySetInnerHTML={{ __html: svg }} />;
+}
+
 export default function App() {
   const [versionId, setVersionId] = useState("v4");
   const [docId, setDocId] = useState("readme");
@@ -219,7 +265,37 @@ export default function App() {
 
               <div className="article__body">
                 <section className="entry markdown">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{activeDoc.content}</ReactMarkdown>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      code({ inline, className, children, ...props }) {
+                        const language = /language-(\w+)/.exec(className || "")?.[1];
+                        const content = String(children).replace(/\n$/, "");
+
+                        if (!inline && language === "mermaid") {
+                          return <MermaidBlock chart={content} />;
+                        }
+
+                        if (inline) {
+                          return (
+                            <code className={className} {...props}>
+                              {children}
+                            </code>
+                          );
+                        }
+
+                        return (
+                          <pre>
+                            <code className={className} {...props}>
+                              {content}
+                            </code>
+                          </pre>
+                        );
+                      },
+                    }}
+                  >
+                    {activeDoc.content}
+                  </ReactMarkdown>
                 </section>
               </div>
             </article>

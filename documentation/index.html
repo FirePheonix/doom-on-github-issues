@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Documentation</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+    <link rel="stylesheet" href="./index.css">
+    <script src="./index.js" defer></script>
+  </head>
+  <body>
+    <div id="article">
+      <div id="header_box">
+        <div id="logo_mark" aria-hidden="true">DOC</div>
+        <div>
+          <h1>Documentation</h1>
+          <p id="subtitle">Static release notes for the Doom-on-GitHub-Issues project, ready for Vercel.</p>
+        </div>
+      </div>
+
+      <p id="intro">
+        Point a Vercel project at <code>documentation/</code> and this site will deploy as-is, with no build step. If you deploy the repo root instead, the top-level redirect sends visitors here.
+      </p>
+
+      <p>Source code: <a href="https://github.com/FirePheonix/doom-on-github-issues">https://github.com/FirePheonix/doom-on-github-issues</a></p>
+
+      <p id="deploy_callout">Fastest path: Vercel project root = <code>documentation/</code>. The docs shell, sidebar links, and hash-based document navigation all work from static hosting.</p>
+
+      <hr>
+
+      <div id="controls_box">
+        <a href="#doc=home" id="play_button">Open Docs</a>
+        <p id="shareware_note" style="margin: 0px; margin-left: 8px;">(current release)</p>
+        <div class="spacer"></div>
+        <input type="checkbox" id="archive_checkbox">
+        <label for="archive_checkbox">Archive</label>
+      </div>
+
+      <div id="archive_container">
+        <div class="section">
+          <div class="section_title">Current release</div>
+          <div id="current_release_links" class="link_grid"></div>
+        </div>
+        <div class="section">
+          <div class="section_title">Archive</div>
+          <div id="archive_links" class="link_grid"></div>
+        </div>
+      </div>
+
+      <div id="viewer_shell">
+        <div id="doc_meta">
+          <span id="doc_title">Loading...</span>
+          <span id="doc_path"></span>
+        </div>
+        <div id="doc_viewer" aria-live="polite"></div>
+      </div>
+
+      <p id="footer_note">Tip: click a doc button above, or append <code>#doc=...</code> to the URL for a shareable view.</p>
+    </div>
+  </body>
+</html>

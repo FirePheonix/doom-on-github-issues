@@ -2,15 +2,20 @@
 
 Active project is in `issues-game-bot/`.
 
+This repository is open source. The current game implementation lives in `issues-game-bot/`, and the docs in `documentation/` describe the release history and architecture.
+
 <img width="695" height="647" alt="image" src="https://github.com/user-attachments/assets/b8ea8409-ce78-4814-9721-439e4e0f4e6f" />
 
 <img width="3177" height="977" alt="image" src="https://github.com/user-attachments/assets/ba6401dc-167c-4dd8-bc08-6ff1cc3fe8b1" />
-
 
 This repository hosts a GitHub-Issues-driven Doom experiment:
 - one issue = one game session
 - one comment = one action tick
 - issue body is updated with latest rendered frame
+
+## Contributing
+
+See `CONTRIBUTING.md` for setup, checks, and contribution guidelines.
 
 ## Release
 

@@ -1,10 +1,40 @@
 #!/usr/bin/env python3
+import hashlib
 from pathlib import Path
+from urllib.error import HTTPError, URLError
 from urllib.request import urlretrieve
 
 from vizdoom import scenarios_path
 
-DOOM1_WAD_URL = "https://distro.ibiblio.org/slitaz/sources/packages/d/doom1.wad"
+DOOM1_WAD_CANDIDATES = [
+    "https://distro.ibiblio.org/slitaz/sources/packages/d/doom1.wad",
+    "http://distro.ibiblio.org/pub/linux/distributions/slitaz/sources/packages/d/doom1.wad",
+    "https://distro.ibiblio.org/pub/linux/distributions/slitaz/sources/packages/d/doom1.wad",
+]
+DOOM1_WAD_MD5 = "5f4eb849b1af12887dec04a2a12e5e62"
+
+
+def digest(path: Path) -> str:
+    return hashlib.md5(path.read_bytes()).hexdigest()
+
+
+def download_doom1_wad(wad_path: Path) -> str:
+    last_error: Exception | None = None
+    for candidate in DOOM1_WAD_CANDIDATES:
+        try:
+            print(f"Downloading shareware IWAD from {candidate}")
+            urlretrieve(candidate, wad_path)
+            if wad_path.stat().st_size <= 1024:
+                raise RuntimeError("Downloaded IWAD appears invalid")
+            if digest(wad_path) != DOOM1_WAD_MD5:
+                raise RuntimeError("Downloaded IWAD checksum mismatch")
+            return candidate
+        except (HTTPError, URLError, OSError, RuntimeError) as error:
+            last_error = error
+            if wad_path.exists():
+                wad_path.unlink()
+            print(f"Download failed from {candidate}: {error}")
+    raise RuntimeError(f"Unable to download doom1.wad from any known mirror: {last_error}")
 
 
 def main() -> int:
@@ -17,11 +47,7 @@ def main() -> int:
         print(f"IWAD already present: {wad_path}")
         return 0
 
-    print(f"Downloading shareware IWAD from {DOOM1_WAD_URL}")
-    urlretrieve(DOOM1_WAD_URL, wad_path)
-
-    if wad_path.stat().st_size <= 1024:
-        raise RuntimeError("Downloaded IWAD appears invalid")
+    download_doom1_wad(wad_path)
 
     # Keep guaranteed scenario renderer paths.
     for filename in ["basic.wad", "basic.cfg", "defend_the_center.wad", "defend_the_center.cfg"]:

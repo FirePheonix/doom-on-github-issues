@@ -311,7 +311,15 @@ export function createSessionManager({ projectRoot, inactivityMs, onExpire }) {
       );
     }
     if (!engine.hasSession(issueNumber, framePath)) {
-      throw new Error(`persistent_engine_not_ready reason=worker_unavailable issue=${issueNumber}`);
+      const safePrefix = Array.isArray(historyPrefix) ? historyPrefix : [];
+      console.warn(`issue=${issueNumber} persistent_worker_missing recovering_from_prefix_len=${safePrefix.length}`);
+      await engine.syncHistory(issueNumber, seed, framePath, safePrefix, {
+        startupTimeoutMs: backgroundStartupTimeoutMs,
+        requestTimeoutMs: backgroundStartupTimeoutMs
+      });
+      if (!engine.hasSession(issueNumber, framePath)) {
+        throw new Error(`persistent_engine_not_ready reason=worker_unavailable issue=${issueNumber}`);
+      }
     }
     if (Array.isArray(commands) && commands.length > 0) {
       await engine.applyCommands(issueNumber, seed, framePath, historyPrefix, commands, { requireExistingReady: true });

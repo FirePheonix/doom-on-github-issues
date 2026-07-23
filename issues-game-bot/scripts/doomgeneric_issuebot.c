@@ -266,12 +266,10 @@ int main(int argc, char** argv)
         "doomgeneric_issuebot",
         "-iwad", (char*)iwad_path,
         "-nosound",
-        "-warp", "1", "1",
-        "-skill", "2",
         NULL
     };
 
-    int doom_argc = 8;
+    int doom_argc = 4;
     doomgeneric_Create(doom_argc, doom_argv);
 
     int max_ticks = g_capture_tick + 600;

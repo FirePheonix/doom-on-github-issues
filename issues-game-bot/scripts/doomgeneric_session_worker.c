@@ -339,11 +339,9 @@ int main(int argc, char** argv)
         "doomgeneric_session_worker",
         "-iwad", (char*)iwad_path,
         "-nosound",
-        "-warp", "1", "1",
-        "-skill", "2",
         NULL
     };
-    int doom_argc = 8;
+    int doom_argc = 4;
     fprintf(stderr, "doomgeneric_session_worker create_start\n");
     fflush(stderr);
     doomgeneric_Create(doom_argc, doom_argv);

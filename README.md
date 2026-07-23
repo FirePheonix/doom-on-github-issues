@@ -3,7 +3,10 @@
 <img src="https://github.com/user-attachments/assets/08132b48-4d0e-406a-8f95-1a85c1329ce4" width="180" alt="doom-icon"/>
 
 # 🎮 doom-on-github-issues
-
+![GitHub stars](https://img.shields.io/github/stars/FirePheonix/doom-on-github-issues?style=flat-square)
+![GitHub forks](https://img.shields.io/github/forks/FirePheonix/doom-on-github-issues?style=flat-square)
+![GitHub issues](https://img.shields.io/github/issues/FirePheonix/doom-on-github-issues?style=flat-square)
+![GitHub last commit](https://img.shields.io/github/last-commit/FirePheonix/doom-on-github-issues?style=flat-square)
 <p>
   <strong>Play Doom using nothing but GitHub Issues.</strong><br/>
   One issue = one game session · One comment = one game tick

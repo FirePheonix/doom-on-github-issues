@@ -435,7 +435,7 @@ async function main() {
 
     await waitFor(() => {
       const body = github.issueBodies.get(issueNumber) || "";
-      return body.includes("- tick: 14") && body.includes("Applied command: use");
+      return body.includes("- tick: 14") && body.includes("Applied command: space");
     });
 
     await postWebhook(baseUrl, config.webhookSecret, "issues", {

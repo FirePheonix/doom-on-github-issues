@@ -124,6 +124,7 @@ static void schedule_commands(char** commands, int count)
 
     for (int i = 0; i < count; ++i)
     {
+        int command_is_space = (strcmp(commands[i], "space") == 0);
         unsigned char key = map_command(commands[i]);
         if (key == 0) continue;
         has_any = 1;
@@ -146,6 +147,17 @@ static void schedule_commands(char** commands, int count)
             push_event(tick + this_hold, 0, key);
             push_event(tick + this_hold + 2, 1, key);
             push_event(tick + this_hold + 10, 0, key);
+            tick += this_step;
+            continue;
+        }
+
+        if (command_is_space)
+        {
+            // Keep menu behavior (enter) while also sending in-game use.
+            push_event(tick, 1, KEY_USE);
+            push_event(tick + this_hold, 0, KEY_USE);
+            push_event(tick, 1, KEY_ENTER);
+            push_event(tick + this_hold, 0, KEY_ENTER);
             tick += this_step;
             continue;
         }

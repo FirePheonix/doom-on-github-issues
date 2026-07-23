@@ -96,6 +96,7 @@ static void load_command_events(const char* command_file, int warmup_ticks, int 
 
         if (len == 0) continue;
 
+        int command_is_space = (strcmp(line, "space") == 0);
         unsigned char key = map_command(line);
         if (key == 0) continue;
 
@@ -120,6 +121,17 @@ static void load_command_events(const char* command_file, int warmup_ticks, int 
             push_event(tick + this_hold, 0, key);
             push_event(tick + this_hold + 2, 1, key);
             push_event(tick + this_hold + 10, 0, key);
+            tick += this_step;
+            continue;
+        }
+
+        if (command_is_space)
+        {
+            // Keep menu behavior (enter) while also sending in-game use.
+            push_event(tick, 1, KEY_USE);
+            push_event(tick + this_hold, 0, KEY_USE);
+            push_event(tick, 1, KEY_ENTER);
+            push_event(tick + this_hold, 0, KEY_ENTER);
             tick += this_step;
             continue;
         }

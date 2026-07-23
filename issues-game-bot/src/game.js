@@ -12,6 +12,7 @@ const ALLOWED_COMMANDS = new Set([
   "fire",
   "shoot",
   "use",
+  "space",
   "enter",
   "esc",
   "escape",
@@ -51,7 +52,6 @@ export function normalizeCommand(input) {
     right: "d",
     r: "d",
     shoot: "fire",
-    space: "use",
     escape: "esc"
   };
   const normalized = aliases[token] || token;
@@ -129,7 +129,7 @@ function applySingleCommand(state, rawCommand) {
   }
 
   if (command === "help") {
-    state.log.unshift("Commands: w a s d fire use/space enter exit restart help");
+    state.log.unshift("Commands: w a s d fire use space enter exit restart help");
     state.lastActivityAt = new Date().toISOString();
     state.log = state.log.slice(0, 8);
     return { state, acceptedCommand: command, appliedCommands: [], restarted: false, tickBefore, tickAfter: state.tick };

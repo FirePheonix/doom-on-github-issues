@@ -1,8 +1,20 @@
 [phases.setup]
-nixPkgs = ["nodejs_20", "python311", "python311Packages.pip", "xorg.libX11", "xorg.libXext", "xorg.libXrender", "xorg.libXtst", "libGL", "openal"]
+nixPkgs = ["nodejs_20", "python311", "python311Packages.pip", "git", "gcc", "gnumake", "xorg.libX11", "xorg.libXext", "xorg.libXrender", "xorg.libXtst", "libGL", "openal"]
 
 [phases.install]
-cmds = ["npm ci", "pip install --no-cache-dir -r requirements.txt", "python scripts/fetch_vizdoom_assets.py"]
+cmds = [
+  "npm ci",
+  "pip install --no-cache-dir -r requirements.txt",
+  "python scripts/fetch_doom_assets.py",
+  "git clone --depth=1 https://github.com/ozkl/doomgeneric /tmp/doomgeneric",
+  "cp scripts/doomgeneric_issuebot.c /tmp/doomgeneric/doomgeneric/doomgeneric_issuebot.c",
+  "cp scripts/doomgeneric_session_worker.c /tmp/doomgeneric/doomgeneric/doomgeneric_session_worker.c",
+  "cp scripts/Makefile.issuebot /tmp/doomgeneric/doomgeneric/Makefile.issuebot",
+  "make -C /tmp/doomgeneric/doomgeneric -f Makefile.issuebot",
+  "mkdir -p scripts/assets",
+  "cp /tmp/doomgeneric/doomgeneric/doomgeneric_issuebot scripts/assets/doomgeneric_issuebot",
+  "cp /tmp/doomgeneric/doomgeneric/doomgeneric_session_worker scripts/assets/doomgeneric_session_worker"
+]
 
 [start]
 cmd = "npm start"

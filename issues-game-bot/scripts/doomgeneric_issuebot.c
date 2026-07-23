@@ -125,6 +125,13 @@ static void load_command_events(const char* command_file, int warmup_ticks, int 
             continue;
         }
 
+        if (key == KEY_USE)
+        {
+            // Give use/open interactions enough time to register reliably in-game.
+            this_hold = hold_ticks < 8 ? 8 : hold_ticks;
+            this_step = ticks_per_command < 14 ? 14 : ticks_per_command;
+        }
+
         if (command_is_space)
         {
             // Keep menu behavior (enter) while also sending in-game use.
@@ -259,10 +266,12 @@ int main(int argc, char** argv)
         "doomgeneric_issuebot",
         "-iwad", (char*)iwad_path,
         "-nosound",
+        "-warp", "1", "1",
+        "-skill", "2",
         NULL
     };
 
-    int doom_argc = 4;
+    int doom_argc = 8;
     doomgeneric_Create(doom_argc, doom_argv);
 
     int max_ticks = g_capture_tick + 600;

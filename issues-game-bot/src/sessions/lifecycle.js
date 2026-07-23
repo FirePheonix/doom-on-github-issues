@@ -31,7 +31,14 @@ export async function startIssueSession({ github, owner, repo, issueNumber, orig
     mode: "start",
     sessionManager
   });
-  await updateIssueGameView(github, owner, repo, issueNumber, originalBody, req, state, frameStore, "", artifactResult?.imageUrlOverride || "");
+  let latestBody = originalBody;
+  try {
+    latestBody = await getIssueBody(github, owner, repo, issueNumber);
+  } catch (error) {
+    console.error(`Failed to fetch latest issue body for issue ${issueNumber}; using payload snapshot`, error);
+  }
+
+  await updateIssueGameView(github, owner, repo, issueNumber, latestBody, req, state, frameStore, "", artifactResult?.imageUrlOverride || "");
   persistSessionStateLater(sessionRepository, sessionManager, issueNumber, state);
 }
 

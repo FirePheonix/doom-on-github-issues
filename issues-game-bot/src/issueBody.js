@@ -1,5 +1,6 @@
 const START = "<!-- ISSUE_GAME_STATE:START -->";
 const END = "<!-- ISSUE_GAME_STATE:END -->";
+const STATE_BLOCK_RE = /<!-- ISSUE_GAME_STATE:START -->[\s\S]*?<!-- ISSUE_GAME_STATE:END -->\s*/g;
 
 export function formatIssueSection({ stateSummary, imageUrl, logs }) {
   const imageLine = imageUrl ? `![doom-frame](${imageUrl})` : "_Loading first frame..._";
@@ -26,12 +27,15 @@ export function formatIssueSection({ stateSummary, imageUrl, logs }) {
 
 export function mergeIssueBody(originalBody, section) {
   const body = originalBody || "";
-  const start = body.indexOf(START);
-  const end = body.indexOf(END);
+  const hasAnyStateBlock = STATE_BLOCK_RE.test(body);
+  STATE_BLOCK_RE.lastIndex = 0;
+  const stripped = body.replace(STATE_BLOCK_RE, "").trimEnd();
 
-  if (start !== -1 && end !== -1 && end > start) {
-    const before = body.slice(0, start).trimEnd();
-    return `${before}\n\n${section}\n`;
+  if (hasAnyStateBlock) {
+    if (stripped.length === 0) {
+      return `${section}\n`;
+    }
+    return `${stripped}\n\n${section}\n`;
   }
 
   if (body.trim().length === 0) {

@@ -11,6 +11,7 @@ const ALLOWED_COMMANDS = new Set([
   "right",
   "fire",
   "shoot",
+  "use",
   "enter",
   "esc",
   "escape",
@@ -50,7 +51,7 @@ export function normalizeCommand(input) {
     right: "d",
     r: "d",
     shoot: "fire",
-    space: "enter",
+    space: "use",
     escape: "esc"
   };
   const normalized = aliases[token] || token;
@@ -128,7 +129,7 @@ function applySingleCommand(state, rawCommand) {
   }
 
   if (command === "help") {
-    state.log.unshift("Commands: w a s d fire enter/space exit restart help");
+    state.log.unshift("Commands: w a s d fire use/space enter exit restart help");
     state.lastActivityAt = new Date().toISOString();
     state.log = state.log.slice(0, 8);
     return { state, acceptedCommand: command, appliedCommands: [], restarted: false, tickBefore, tickAfter: state.tick };
@@ -217,7 +218,7 @@ export function summarizeState(state) {
     kills: "engine-managed",
     targetKills: "n/a",
     status: state.status,
-    commands: "menu/game: w/s/a/d arrows, enter/space use, esc back, fire attack | exit | restart",
+    commands: "menu/game: w/s/a/d arrows, use/space door use, enter menu select, esc back, fire attack | exit | restart",
     renderer: "doomgeneric"
   };
 }

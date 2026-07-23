@@ -67,7 +67,8 @@ static unsigned char map_command(const char* command)
     if (strcmp(command, "fire") == 0) return KEY_FIRE;
     if (strcmp(command, "shoot") == 0) return KEY_FIRE;
     if (strcmp(command, "enter") == 0) return KEY_ENTER;
-    if (strcmp(command, "space") == 0) return KEY_ENTER;
+    if (strcmp(command, "space") == 0) return KEY_USE;
+    if (strcmp(command, "use") == 0) return KEY_USE;
     if (strcmp(command, "esc") == 0) return KEY_ESCAPE;
     if (strcmp(command, "escape") == 0) return KEY_ESCAPE;
     return 0;

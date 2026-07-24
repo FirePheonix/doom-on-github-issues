@@ -1,0 +1,50 @@
+name: Issues Game Bot Tests
+
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - "issues-game-bot/**"
+      - ".github/workflows/issues-game-bot-tests.yml"
+  pull_request:
+    paths:
+      - "issues-game-bot/**"
+      - ".github/workflows/issues-game-bot-tests.yml"
+
+jobs:
+  docker-smoke:
+    name: Docker smoke suite
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: issues-game-bot
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build runtime image
+        run: docker build -t issues-game-bot-ci .
+
+      - name: Persistent engine smoke
+        run: docker run --rm -e DOOMGENERIC_SESSION_BINARY=/app/scripts/assets/doomgeneric_session_worker issues-game-bot-ci npm run persistent-engine:smoke
+
+      - name: Render smoke
+        run: docker run --rm issues-game-bot-ci npm run render:smoke
+
+      - name: End-to-end smoke
+        run: docker run --rm issues-game-bot-ci npm run e2e:smoke
+
+      - name: Frame store smoke
+        run: docker run --rm issues-game-bot-ci npm run frame-store:smoke
+
+      - name: Recovery smoke
+        run: docker run --rm issues-game-bot-ci npm run recovery:smoke
+
+      - name: Repository mode smoke
+        run: docker run --rm issues-game-bot-ci npm run repository-mode:smoke
+
+      - name: Menu frame sync
+        run: docker run --rm issues-game-bot-ci npm run menu-frame:sync

@@ -111,7 +111,7 @@ static void complete_pending_reply()
 {
     if (g_reply_pending && !g_capture_pending)
     {
-        printf("OK\n");
+        printf("\nOK\n");
         fflush(stdout);
         g_reply_pending = 0;
     }
@@ -242,14 +242,14 @@ static int process_command_line(char* line)
     if (strcmp(line, "SNAPSHOT") == 0)
     {
         write_ppm(g_output_ppm);
-        printf("OK\n");
+        printf("\nOK\n");
         fflush(stdout);
         return 1;
     }
 
     if (strcmp(line, "SHUTDOWN") == 0)
     {
-        printf("OK\n");
+        printf("\nOK\n");
         fflush(stdout);
         return 0;
     }
@@ -354,7 +354,7 @@ int main(int argc, char** argv)
     }
 
     setvbuf(stdout, NULL, _IOLBF, 0);
-    printf("READY\n");
+    printf("\nREADY\n");
     fflush(stdout);
     char line[4096];
 

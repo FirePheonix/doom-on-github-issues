@@ -10,6 +10,8 @@ from urllib.request import urlopen
 from vizdoom import scenarios_path
 
 DOOM1_WAD_CANDIDATES = [
+    # Prefer the packaged Doom 1.9 shareware bundle first.
+    "https://archive.org/download/doom19s/doom19s.zip",
     # Historical mirrors (often unavailable; keep as optional fallbacks).
     "https://distro.ibiblio.org/slitaz/sources/packages/d/doom1.wad",
     "http://distro.ibiblio.org/pub/linux/distributions/slitaz/sources/packages/d/doom1.wad",
@@ -18,9 +20,9 @@ DOOM1_WAD_CANDIDATES = [
     "https://www.libsdl.org/projects/doom/data/doom1.wad.gz",
     "https://www.libsdl.org/projects/doom/data/doom1.wad.zip",
     "https://www.libsdl.org/projects/doom/data/doom1.wad",
-    "https://archive.org/download/doom19s/doom19s.zip",
 ]
-DOOM1_WAD_MD5 = "5f4eb849b1af12887dec04a2a12e5e62"
+# Doom 1.9 shareware IWAD checksum.
+DOOM1_WAD_MD5 = "f0cefca49926d00903cf57551d901abe"
 
 
 def digest(path: Path) -> str:
@@ -80,7 +82,13 @@ def main() -> int:
 
     wad_path = dest / "doom1.wad"
     if wad_path.exists() and wad_path.stat().st_size > 1024:
-        print(f"IWAD already present: {wad_path}")
+        current_md5 = digest(wad_path)
+        if current_md5 == DOOM1_WAD_MD5:
+            print(f"IWAD already present: {wad_path}")
+        else:
+            print(f"IWAD checksum mismatch (found {current_md5}); re-downloading expected {DOOM1_WAD_MD5}")
+            wad_path.unlink()
+            download_doom1_wad(wad_path)
     else:
         download_doom1_wad(wad_path)
 

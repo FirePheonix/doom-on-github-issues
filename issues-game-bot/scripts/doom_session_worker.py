@@ -271,6 +271,12 @@ class DoomGenericSession:
             reply = self._read_reply(timeout_ms)
             if reply == "READY" or reply.startswith("OK") or reply.startswith("ERR"):
                 return reply
+            if reply.endswith("READY") or reply.endswith("OK"):
+                protocol = "READY" if reply.endswith("READY") else "OK"
+                noisy_prefix = reply[: -len(protocol)]
+                if noisy_prefix:
+                    print(f"doomgeneric_session_stdout={noisy_prefix}", file=sys.stderr)
+                return protocol
             if reply:
                 print(f"doomgeneric_session_stdout={reply}", file=sys.stderr)
 

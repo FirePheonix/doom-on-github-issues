@@ -10,8 +10,10 @@ from urllib.request import urlopen
 from vizdoom import scenarios_path
 
 DOOM1_WAD_CANDIDATES = [
-    # Prefer the packaged Doom 1.9 shareware bundle first.
-    "https://archive.org/download/doom19s/doom19s.zip",
+    # Prefer Doom 1.9 shareware packages that are known to contain the right IWAD.
+    "https://sourceforge.net/projects/dooms-19-winx64/files/packaged_zip/doom19s.zip/download",
+    "https://www.jbserver.com/downloads/games/doom/misc/shareware/doom19s.zip",
+    "https://www.jbserver.com/downloads/games/doom/misc/shareware/doom1.wad.zip",
     # Historical mirrors (often unavailable; keep as optional fallbacks).
     "https://distro.ibiblio.org/slitaz/sources/packages/d/doom1.wad",
     "http://distro.ibiblio.org/pub/linux/distributions/slitaz/sources/packages/d/doom1.wad",

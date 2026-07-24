@@ -9,6 +9,7 @@
     "db:migrate": "node src/migrate.js",
     "render:smoke": "node src/smoke.js",
     "menu-frame:sync": "node src/menu-frame-sync.js",
+    "persistent-engine:smoke": "node src/persistent-engine-smoke.js",
     "e2e:smoke": "node src/e2e-smoke.js",
     "frame-store:smoke": "node src/frame-store-smoke.js",
     "recovery:smoke": "node src/recovery-smoke.js",

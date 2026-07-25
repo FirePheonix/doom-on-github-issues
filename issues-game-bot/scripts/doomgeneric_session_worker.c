@@ -10,8 +10,6 @@
 #include <unistd.h>
 #ifdef _WIN32
 #include <windows.h>
-#else
-#include <sys/select.h>
 #endif
 
 typedef struct {
@@ -259,19 +257,6 @@ static int process_command_line(char* line)
     return 1;
 }
 
-#ifndef _WIN32
-static int stdin_ready()
-{
-    fd_set read_fds;
-    struct timeval timeout;
-    FD_ZERO(&read_fds);
-    FD_SET(STDIN_FILENO, &read_fds);
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 0;
-    return select(STDIN_FILENO + 1, &read_fds, NULL, NULL, &timeout) > 0;
-}
-#endif
-
 void DG_SleepMs(uint32_t ms)
 {
     usleep(ms * 1000);
@@ -358,7 +343,6 @@ int main(int argc, char** argv)
     fflush(stdout);
     char line[4096];
 
-#ifdef _WIN32
     while (fgets(line, sizeof(line), stdin))
     {
         int keep_running = process_command_line(line);
@@ -372,33 +356,6 @@ int main(int argc, char** argv)
             break;
         }
     }
-#else
-    int keep_running = 1;
-    while (keep_running)
-    {
-        while (stdin_ready())
-        {
-            if (!fgets(line, sizeof(line), stdin))
-            {
-                keep_running = 0;
-                break;
-            }
-            keep_running = process_command_line(line);
-            if (!keep_running)
-            {
-                break;
-            }
-        }
-
-        if (!keep_running)
-        {
-            break;
-        }
-
-        doomgeneric_Tick();
-        complete_pending_reply();
-    }
-#endif
 
     free(g_events);
     return 0;

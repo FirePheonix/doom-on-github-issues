@@ -28,6 +28,8 @@
 
 ## 🚀 Overview
 
+Blogpost on how i ran: https://blogs.shubhamz.dev/systems/how-i-ran-doom-on-github-issues
+
 The active implementation lives in **`issues-game-bot/`**.
 
 

@@ -34,7 +34,7 @@ The active implementation lives in **`issues-game-bot/`**.
 
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/b8ea8409-ce78-4814-9721-439e4e0f4e6f" width="700"/>
+  <img width="700" alt="doom on github issue image" src="https://github.com/user-attachments/assets/16900729-323c-461a-bc58-73d7e537dfa2" />
 </p>
 
 This repository is an open-source experiment that turns **GitHub Issues into a multiplayer Doom interface**.
